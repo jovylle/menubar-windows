@@ -33,6 +33,10 @@ enum StripLayout {
     static let topOverscan: CGFloat = 6
     /// The strip never starts closer than this to the left screen edge (keeps the Apple menu usable).
     static let minimumLeftInset: CGFloat = 130
+    /// Left placement starts this far from the screen edge, which keeps the Apple menu clear.
+    static let leftPlacementInset: CGFloat = 42
+    /// Gap between the end of the covered menu titles and the filler's right edge.
+    static let coverPadding: CGFloat = 12
     /// Gap between the strip and the leftmost status icon.
     static let statusGap: CGFloat = 12
     /// Below this width the strip is hidden.
@@ -62,6 +66,10 @@ struct FreeStrip {
     let anchor: Anchor
     /// Short note for `--list` about how the region was found.
     let leftSource: String
+    /// Cocoa x where the frontmost app's menu titles end on this screen (plus padding), if known.
+    var menusMaxX: CGFloat?
+    /// Cocoa x where covering the menu titles starts (just after the Apple menu).
+    var coverLeft: CGFloat = 0
 
     /// The panel frame for tabs that need `contentWidth`. Automatic width trims the region to the
     /// tabs at its anchor; fixed width uses the whole region.
@@ -188,6 +196,7 @@ enum MenuBarGeometry {
         on screen: NSScreen,
         width: CGFloat = StripLayout.stripWidth,
         alignment: StripAlignment = .center,
+        placement: StripPlacement = .middle,
         hideInFullScreen: Bool = true
     ) -> FreeStrip? {
         if hideInFullScreen, frontmostIsFullScreen() { return nil }
@@ -220,7 +229,17 @@ enum MenuBarGeometry {
         // The frontmost app's menu titles are ignored on purpose: the strip may sit on top of them.
         // Right-click a tab and choose "Hide for ..." to reach the menus underneath. Only the Apple
         // menu and the app name are kept clear.
-        lo = max(screen.frame.minX + StripLayout.minimumLeftInset, min(lo, hi - width))
+        if placement == .left {
+            // Top left: start right after the Apple menu and end at the notch (or after `width`).
+            lo = screen.frame.minX + StripLayout.leftPlacementInset
+            hi = min(lo + width, screen.auxiliaryTopLeftArea.map { $0.maxX - StripLayout.notchGap } ?? .greatestFiniteMagnitude)
+            if let statusMinX = statusItemsMinX(on: screen) {
+                hi = min(hi, statusMinX - StripLayout.statusGap)
+            }
+            anchor = .leading
+        } else {
+            lo = max(screen.frame.minX + StripLayout.minimumLeftInset, min(lo, hi - width))
+        }
         guard hi - lo >= StripLayout.minimumStripWidth else { return nil }
 
         // Tabs are a share of the bar height, flush with the top. The panel is only as tall as the
@@ -233,6 +252,12 @@ enum MenuBarGeometry {
             height: height + StripLayout.topOverscan
         )
         if alignment == .left { anchor = .leading }
-        return FreeStrip(frame: frame, anchor: anchor, leftSource: "menus ignored, anchor \(anchor.rawValue)")
+        return FreeStrip(
+            frame: frame,
+            anchor: anchor,
+            leftSource: "menus ignored, anchor \(anchor.rawValue)",
+            menusMaxX: axMaxX.map { $0 + StripLayout.coverPadding },
+            coverLeft: screen.frame.minX + StripLayout.leftPlacementInset
+        )
     }
 }

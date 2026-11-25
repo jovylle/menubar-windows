@@ -109,6 +109,16 @@ private struct AppearancePane: View {
             }
 
             Section("Strip") {
+                Picker("Placement", selection: $settings.placement) {
+                    ForEach(StripPlacement.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.radioGroup)
+                Help("Top left puts the tabs where the app's menu titles start, after the Apple menu.")
+
+                Toggle("Cover the app's menu titles", isOn: $settings.coverMenuTitles)
+                Help("Hides File, Edit, View and the other titles behind a bar that joins the tabs. "
+                    + "To use a menu, right-click a tab and choose Hide for 10 seconds.")
+
                 HStack {
                     Slider(value: $settings.tabHeightPercent, in: Settings.tabHeightRange, step: 5) {
                         Text("Tab height")

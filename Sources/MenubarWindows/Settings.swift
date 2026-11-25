@@ -70,6 +70,18 @@ enum StripWidthMode: String, CaseIterable, Identifiable {
     }
 }
 
+enum StripPlacement: String, CaseIterable, Identifiable {
+    case middle
+    case left
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .middle: return "Middle of the menu bar"
+        case .left: return "Top left, right after the Apple menu"
+        }
+    }
+}
+
 enum StripAlignment: String, CaseIterable, Identifiable {
     case center
     case left
@@ -98,6 +110,8 @@ final class Settings: ObservableObject {
         static let widthMode = StripWidthMode.automatic
         static let stripWidth: Double = 560
         static let alignment = StripAlignment.center
+        static let placement = StripPlacement.middle
+        static let coverMenuTitles = false
         static let maxTabs = 8
         static let showOnAllDisplays = true
         static let hideWhenSingleWindow = false
@@ -134,6 +148,9 @@ final class Settings: ObservableObject {
     @Published var customAccent: [Double] { didSet { store.set(customAccent, forKey: Key.customAccent) } }
     @Published var widthMode: StripWidthMode { didSet { store.set(widthMode.rawValue, forKey: Key.widthMode) } }
     @Published var stripWidth: Double { didSet { store.set(stripWidth, forKey: Key.stripWidth) } }
+    @Published var placement: StripPlacement { didSet { store.set(placement.rawValue, forKey: Key.placement) } }
+    /// Hides the frontmost app's menu titles behind a filler bar that joins the tabs.
+    @Published var coverMenuTitles: Bool { didSet { store.set(coverMenuTitles, forKey: Key.coverMenus) } }
     @Published var alignment: StripAlignment { didSet { store.set(alignment.rawValue, forKey: Key.alignment) } }
 
     // Displays
@@ -168,6 +185,8 @@ final class Settings: ObservableObject {
         static let widthMode = "mw.widthMode"
         static let stripWidth = "mw.stripWidth"
         static let alignment = "mw.alignment"
+        static let placement = "mw.placement"
+        static let coverMenus = "mw.coverMenuTitles"
         static let allDisplays = "mw.showOnAllDisplays"
         static let disabledDisplays = "mw.disabledDisplays"
         static let hideSingle = "mw.hideWhenSingleWindow"
@@ -213,6 +232,8 @@ final class Settings: ObservableObject {
         widthMode = choice(Key.widthMode, Defaults.widthMode)
         stripWidth = min(max(value(Key.stripWidth, Defaults.stripWidth), Self.stripWidthRange.lowerBound), Self.stripWidthRange.upperBound)
         alignment = choice(Key.alignment, Defaults.alignment)
+        placement = choice(Key.placement, Defaults.placement)
+        coverMenuTitles = value(Key.coverMenus, Defaults.coverMenuTitles)
         showOnAllDisplays = value(Key.allDisplays, Defaults.showOnAllDisplays)
         disabledDisplays = value(Key.disabledDisplays, [])
         hideWhenSingleWindow = value(Key.hideSingle, Defaults.hideWhenSingleWindow)
@@ -302,6 +323,8 @@ final class Settings: ObservableObject {
         widthMode = Defaults.widthMode
         stripWidth = Defaults.stripWidth
         alignment = Defaults.alignment
+        placement = Defaults.placement
+        coverMenuTitles = Defaults.coverMenuTitles
         showOnAllDisplays = Defaults.showOnAllDisplays
         disabledDisplays = []
         hideWhenSingleWindow = Defaults.hideWhenSingleWindow

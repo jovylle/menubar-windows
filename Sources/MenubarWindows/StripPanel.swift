@@ -75,7 +75,58 @@ struct StripOptions: Equatable {
     }
 }
 
+/// A bar-colored block that hides the menu titles next to the tabs when "Cover menu titles" is on.
+final class FillerView: NSVisualEffectView {
+    private let tint = NSView()
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        material = .menu
+        blendingMode = .behindWindow
+        state = .active
+        wantsLayer = true
+        tint.wantsLayer = true
+        tint.autoresizingMask = [.width, .height]
+        addSubview(tint)
+        setAccessibilityElement(false)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    override func layout() {
+        super.layout()
+        tint.frame = bounds
+        refreshColor()
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        refreshColor()
+    }
+
+    func refreshColor() {
+        let light = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .aqua
+        tint.layer?.backgroundColor = PillView.baseFill(theme: Settings.shared.theme, light: light).cgColor
+    }
+
+    // Clicks land on the strip underneath, which owns the right-click menu.
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
 final class StripContentView: NSView {
+    /// Where the tabs sit inside a panel that is wider than the tabs (the rest is filler).
+    struct TabsRange: Equatable {
+        var offset: CGFloat
+        var width: CGFloat
+    }
+
+    var tabsRange: TabsRange? {
+        didSet { if oldValue != tabsRange { needsLayout = true } }
+    }
+    private let fillerLeft = FillerView()
+    private let fillerRight = FillerView()
     private let clip = NSView()
     private let track = NSView()
     private(set) var pills: [PillView] = []
@@ -97,7 +148,10 @@ final class StripContentView: NSView {
         layer?.backgroundColor = NSColor(white: 0, alpha: 0.01).cgColor
         clip.wantsLayer = true
         clip.layer?.masksToBounds = true
-        clip.autoresizingMask = [.width, .height]
+        addSubview(fillerLeft)
+        addSubview(fillerRight)
+        fillerLeft.isHidden = true
+        fillerRight.isHidden = true
         addSubview(clip)
         clip.addSubview(track)
         setAccessibilityRole(.group)
@@ -112,7 +166,23 @@ final class StripContentView: NSView {
 
     override func layout() {
         super.layout()
-        clip.frame = bounds
+        if let range = tabsRange {
+            clip.frame = NSRect(x: range.offset, y: 0, width: range.width, height: bounds.height)
+            let rightStart = range.offset + range.width
+            // Square tabs flare out at the top. The filler runs under the flares so no sliver of the
+            // menu bar shows between the last tab and the filler.
+            let under = pillAppearance.style == .square ? PillView.flareRadius : 0
+            fillerLeft.frame = NSRect(x: 0, y: 0, width: max(0, range.offset + under), height: bounds.height)
+            fillerRight.frame = NSRect(
+                x: rightStart - under, y: 0, width: max(0, bounds.width - rightStart + under), height: bounds.height
+            )
+            fillerLeft.isHidden = range.offset < 0.5
+            fillerRight.isHidden = bounds.width - rightStart < 0.5
+        } else {
+            clip.frame = bounds
+            fillerLeft.isHidden = true
+            fillerRight.isHidden = true
+        }
         layoutPills()
     }
 
@@ -284,6 +354,8 @@ final class StripContentView: NSView {
         overflowModels = overflow
         guard newSignature != signature else { return }
         signature = newSignature
+        fillerLeft.refreshColor()
+        fillerRight.refreshColor()
         self.pillAppearance = appearance
         self.options = options
 
@@ -347,7 +419,7 @@ final class StripContentView: NSView {
     /// to icon-only when crowded" is on), then shrink evenly to a minimum width, and any remaining
     /// overflow is reached by scrolling.
     private func layoutPills() {
-        let width = bounds.width
+        let width = clip.bounds.width
         let height = bounds.height
         guard !pills.isEmpty else {
             track.frame = NSRect(x: 0, y: 0, width: width, height: height)

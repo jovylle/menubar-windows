@@ -182,6 +182,12 @@ final class PillView: NSView {
         }
     }
 
+    /// Background of an inactive tab. The filler used to cover menu titles uses the same color.
+    static func baseFill(theme: ColorTheme, light: Bool) -> NSColor {
+        if theme == .black { return .black }
+        return light ? NSColor(white: 0.9, alpha: 0.62) : NSColor(white: 0, alpha: 0.55)
+    }
+
     private var isLightAppearance: Bool {
         effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .aqua
     }
