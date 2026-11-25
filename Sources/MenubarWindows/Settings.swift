@@ -91,7 +91,7 @@ final class Settings: ObservableObject {
         static let shrinkWhenCrowded = true
         static let style = TabStyle.square
         static let theme = ColorTheme.system
-        static let tabHeightPercent: Double = 80
+        static let tabHeightPercent: Double = 100
         static let indicator = ActiveIndicator.both
         static let useSystemAccent = true
         static let customAccent: [Double] = [0.95, 0.55, 0.15, 1]

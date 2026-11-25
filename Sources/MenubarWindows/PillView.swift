@@ -61,7 +61,6 @@ struct PillModel {
 
 final class PillView: NSView {
     private static let font = NSFont.systemFont(ofSize: StripLayout.pillFontSize, weight: .medium)
-    private static let activeFont = NSFont.systemFont(ofSize: StripLayout.pillFontSize, weight: .bold)
     private static let horizontalPadding: CGFloat = 10
     private static let iconGap: CGFloat = 6
     private static let roundedInset: CGFloat = 3
@@ -99,9 +98,8 @@ final class PillView: NSView {
         appearanceStyle = appearance
         onClick = model.action
         onMiddleClick = model.middleClick
-        let measureFont = model.isActive ? Self.activeFont : Self.font
         let textWidth = model.text.isEmpty
-            ? 0 : ceil((model.text as NSString).size(withAttributes: [.font: measureFont]).width)
+            ? 0 : ceil((model.text as NSString).size(withAttributes: [.font: Self.font]).width)
         let iconWidth = model.icon == nil ? 0 : StripLayout.iconSize
         let gap = (model.icon != nil && textWidth > 0) ? Self.iconGap : 0
         let flare = appearance.style == .square ? Self.flareRadius : 0
@@ -154,7 +152,6 @@ final class PillView: NSView {
 
         label.stringValue = model.text
         label.font = Self.font
-        if model.isActive { label.font = Self.activeFont }
         label.lineBreakMode = .byTruncatingTail
         label.maximumNumberOfLines = 1
         addSubview(label)
@@ -192,7 +189,7 @@ final class PillView: NSView {
         let fill: NSColor
         let text: NSColor
         if appearanceStyle.theme == .black {
-            // Pure black in light and dark mode. The active tab is told apart by bold text and the
+            // Pure black in light and dark mode. The active tab is told apart by the
             // accent underline, not by its background. Inactive text is a touch dimmer than active.
             fill = .black
             text = NSColor(white: 1, alpha: model.isActive ? 1 : 0.82)

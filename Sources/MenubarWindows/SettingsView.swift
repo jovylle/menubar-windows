@@ -88,7 +88,7 @@ private struct AppearancePane: View {
                 }
                 .pickerStyle(.radioGroup)
                 Help("Pure black keeps every tab black with white text, whatever the system appearance. "
-                    + "The active tab then has bold text and an accent underline.")
+                    + "The active tab is shown with an accent underline.")
 
                 Picker("Tab style", selection: $settings.style) {
                     ForEach(TabStyle.allCases) { Text($0.title).tag($0) }
