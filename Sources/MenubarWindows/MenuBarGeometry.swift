@@ -48,8 +48,12 @@ enum MenuBarGeometry {
     /// Strip height: the reserved menu bar height, or the status bar thickness as a fallback.
     static func menuBarHeight(_ screen: NSScreen) -> CGFloat {
         let reserved = reservedMenuBarHeight(screen)
-        return reserved > 0 ? reserved : NSStatusBar.system.thickness
+        if reserved > 0 { return reserved }
+        return externalBarHeights[NSStringFromRect(screen.frame)] ?? NSStatusBar.system.thickness
     }
+
+    /// Menu bar heights measured from Accessibility on screens that report no reserved height.
+    nonisolated(unsafe) static var externalBarHeights: [String: CGFloat] = [:]
 
     /// Top edge of the primary screen in Cocoa coordinates. The primary screen is the one at index 0.
     static func primaryMaxY() -> CGFloat {
@@ -83,6 +87,13 @@ enum MenuBarGeometry {
         AX.setTimeout(app)
         guard let bar = AX.element(app, "AXMenuBar") else { return nil }
 
+        if let barPos = AX.point(bar, "AXPosition"), let barSize = AX.size(bar, "AXSize"),
+           barSize.height > 0, reservedMenuBarHeight(screen) == 0 {
+            let r = cocoaRect(fromTopLeft: CGRect(origin: barPos, size: barSize))
+            if r.midX >= screen.frame.minX, r.midX <= screen.frame.maxX, r.midY >= screen.frame.midY {
+                externalBarHeights[NSStringFromRect(screen.frame)] = barSize.height
+            }
+        }
         let bandBottom = screen.frame.maxY - menuBarHeight(screen)
         var maxX: CGFloat?
         for item in AX.elements(bar, "AXChildren") {
@@ -104,11 +115,17 @@ enum MenuBarGeometry {
 
     /// The free strip for one screen, or nil when it should be hidden.
     static func freeStrip(on screen: NSScreen) -> FreeStrip? {
-        guard reservedMenuBarHeight(screen) > 0, !frontmostIsFullScreen() else { return nil }
+        guard !frontmostIsFullScreen() else { return nil }
+
+        // NSScreen.visibleFrame can report no reserved menu bar on an external display that does
+        // have one, so reserved height alone is not enough. A screen counts as having a menu bar when
+        // the system reserves one or the frontmost app's menu titles sit on it.
+        let axMaxX = frontmostMenuTitlesMaxX(on: screen)
+        guard reservedMenuBarHeight(screen) > 0 || axMaxX != nil else { return nil }
 
         let left: CGFloat
         let source: String
-        if let maxX = frontmostMenuTitlesMaxX(on: screen) {
+        if let maxX = axMaxX {
             left = maxX + StripLayout.leftPadding
             source = "AX"
         } else {
