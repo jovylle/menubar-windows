@@ -144,7 +144,7 @@ final class PillView: NSView {
         background.addSubview(highlight)
 
         // Accent underline on the active tab. Also inside the effect view, so rounded corners clip it.
-        if model.isActive && (appearanceStyle.indicator.showsUnderline || appearanceStyle.theme == .black) {
+        if model.isActive && appearanceStyle.indicator.showsUnderline {
             underline.wantsLayer = true
             underline.layer?.backgroundColor = appearanceStyle.accent.cgColor
             background.addSubview(underline)
@@ -197,8 +197,8 @@ final class PillView: NSView {
         let fill: NSColor
         let text: NSColor
         if appearanceStyle.theme == .black {
-            // Pure black in light and dark mode. The active tab is told apart by the
-            // accent underline, not by its background. Inactive text is a touch dimmer than active.
+            // Pure black in light and dark mode. The active tab is told apart by
+            // full-white text against slightly dimmer text, since its background stays black.
             fill = .black
             text = NSColor(white: 1, alpha: model.isActive ? 1 : 0.82)
         } else if isLightAppearance {
