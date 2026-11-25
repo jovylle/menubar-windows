@@ -30,6 +30,18 @@ enum TabStyle: String, CaseIterable, Identifiable {
     }
 }
 
+enum ColorTheme: String, CaseIterable, Identifiable {
+    case system
+    case black
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .system: return "Match the system (light or dark)"
+        case .black: return "Pure black, in light and dark mode"
+        }
+    }
+}
+
 enum ActiveIndicator: String, CaseIterable, Identifiable {
     case underline
     case brighterFill
@@ -78,6 +90,7 @@ final class Settings: ObservableObject {
         static let label = TabLabelMode.appAndTitle
         static let shrinkWhenCrowded = true
         static let style = TabStyle.square
+        static let theme = ColorTheme.system
         static let indicator = ActiveIndicator.both
         static let useSystemAccent = true
         static let customAccent: [Double] = [0.95, 0.55, 0.15, 1]
@@ -110,6 +123,7 @@ final class Settings: ObservableObject {
     @Published var maxTabs: Int { didSet { store.set(maxTabs, forKey: Key.maxTabs) } }
 
     // Appearance
+    @Published var theme: ColorTheme { didSet { store.set(theme.rawValue, forKey: Key.theme) } }
     @Published var style: TabStyle { didSet { store.set(style.rawValue, forKey: Key.style) } }
     @Published var indicator: ActiveIndicator { didSet { store.set(indicator.rawValue, forKey: Key.indicator) } }
     @Published var useSystemAccent: Bool { didSet { store.set(useSystemAccent, forKey: Key.useSystemAccent) } }
@@ -142,6 +156,7 @@ final class Settings: ObservableObject {
         static let shrink = "mw.shrinkWhenCrowded"
         static let maxTabs = "mw.maxTabs"
         static let style = "mw.style"
+        static let theme = "mw.colorTheme"
         static let indicator = "mw.indicator"
         static let useSystemAccent = "mw.useSystemAccent"
         static let customAccent = "mw.customAccent"
@@ -184,6 +199,7 @@ final class Settings: ObservableObject {
         shrinkWhenCrowded = value(Key.shrink, Defaults.shrinkWhenCrowded)
         maxTabs = min(max(value(Key.maxTabs, Defaults.maxTabs), Self.maxTabsRange.lowerBound), Self.maxTabsRange.upperBound)
         style = choice(Key.style, Defaults.style)
+        theme = choice(Key.theme, Defaults.theme)
         indicator = choice(Key.indicator, Defaults.indicator)
         useSystemAccent = value(Key.useSystemAccent, Defaults.useSystemAccent)
         let accent: [Double] = value(Key.customAccent, Defaults.customAccent)

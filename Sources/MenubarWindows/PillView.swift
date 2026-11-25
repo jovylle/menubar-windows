@@ -20,6 +20,7 @@ import AppKit
 
 struct PillAppearance: Equatable {
     var style: TabStyle
+    var theme: ColorTheme
     var indicator: ActiveIndicator
     var accent: NSColor
     var inWindow = false
@@ -28,6 +29,7 @@ struct PillAppearance: Equatable {
         let settings = Settings.shared
         return PillAppearance(
             style: settings.style,
+            theme: settings.theme,
             indicator: settings.indicator,
             accent: settings.accentColor,
             inWindow: inWindow
@@ -38,7 +40,7 @@ struct PillAppearance: Equatable {
     var signature: String {
         let rgb = accent.usingColorSpace(.sRGB)
         let color = rgb.map { String(format: "%.3f,%.3f,%.3f", $0.redComponent, $0.greenComponent, $0.blueComponent) } ?? "?"
-        return "\(style.rawValue)|\(indicator.rawValue)|\(color)|\(inWindow)"
+        return "\(style.rawValue)|\(theme.rawValue)|\(indicator.rawValue)|\(color)|\(inWindow)"
     }
 }
 
@@ -59,7 +61,7 @@ struct PillModel {
 
 final class PillView: NSView {
     private static let font = NSFont.systemFont(ofSize: StripLayout.pillFontSize, weight: .medium)
-    private static let activeFont = NSFont.systemFont(ofSize: StripLayout.pillFontSize, weight: .semibold)
+    private static let activeFont = NSFont.systemFont(ofSize: StripLayout.pillFontSize, weight: .bold)
     private static let horizontalPadding: CGFloat = 10
     private static let iconGap: CGFloat = 6
     private static let roundedInset: CGFloat = 3
@@ -97,8 +99,9 @@ final class PillView: NSView {
         appearanceStyle = appearance
         onClick = model.action
         onMiddleClick = model.middleClick
+        let measureFont = model.isActive ? Self.activeFont : Self.font
         let textWidth = model.text.isEmpty
-            ? 0 : ceil((model.text as NSString).size(withAttributes: [.font: Self.font]).width)
+            ? 0 : ceil((model.text as NSString).size(withAttributes: [.font: measureFont]).width)
         let iconWidth = model.icon == nil ? 0 : StripLayout.iconSize
         let gap = (model.icon != nil && textWidth > 0) ? Self.iconGap : 0
         let flare = appearance.style == .square ? Self.flareRadius : 0
@@ -138,7 +141,7 @@ final class PillView: NSView {
         background.addSubview(highlight)
 
         // Accent underline on the active tab. Also inside the effect view, so rounded corners clip it.
-        if model.isActive && appearanceStyle.indicator.showsUnderline {
+        if model.isActive && (appearanceStyle.indicator.showsUnderline || appearanceStyle.theme == .black) {
             underline.wantsLayer = true
             underline.layer?.backgroundColor = appearanceStyle.accent.cgColor
             background.addSubview(underline)
@@ -178,7 +181,9 @@ final class PillView: NSView {
         effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .aqua
     }
 
-    private var hasActiveFill: Bool { model.isActive && appearanceStyle.indicator.showsFill }
+    private var hasActiveFill: Bool {
+        model.isActive && appearanceStyle.indicator.showsFill && appearanceStyle.theme == .system
+    }
 
     /// Contrast. Dark mode: inactive tabs are a dark tint under white text, a filled active tab is near
     /// white under dark text. Light mode: every tab has a light background under dark text, and the
@@ -186,7 +191,12 @@ final class PillView: NSView {
     private func applyColors() {
         let fill: NSColor
         let text: NSColor
-        if isLightAppearance {
+        if appearanceStyle.theme == .black {
+            // Pure black in light and dark mode. The active tab is told apart by bold text and the
+            // accent underline, not by its background. Inactive text is a touch dimmer than active.
+            fill = .black
+            text = NSColor(white: 1, alpha: model.isActive ? 1 : 0.82)
+        } else if isLightAppearance {
             fill = hasActiveFill ? NSColor(white: 1, alpha: 1) : NSColor(white: 0.9, alpha: 0.62)
             text = NSColor(white: 0.07, alpha: 1)
         } else if hasActiveFill {
