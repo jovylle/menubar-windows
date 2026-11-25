@@ -5,3 +5,7 @@ xcuserdata/
 build/
 *.app
 *.dmg
+
+# Private files: plaintext and the key never get committed (see scripts/vault.mjs)
+private/
+.vault-key

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Blocks a commit that would include plaintext from private/ or the vault key.
+ROOT="$(git rev-parse --show-toplevel)"
+exec node "$ROOT/scripts/vault.mjs" check

@@ -97,6 +97,26 @@ appearance, `-mw.debugAppearance dark` (or `light`) forces an appearance for one
 The bare binary and the bundle keep separate settings: the defaults domain is the executable name for
 `swift run` and the bundle identifier for the app.
 
+## Private files in a public repo
+
+Anything you want to keep private (launch notes, signing steps, contact details) goes in `private/`.
+That folder and `.vault-key` are gitignored. `node scripts/vault.mjs encrypt` writes each file as
+AES-256-GCM ciphertext into `private.enc/`, which is committed. `node scripts/vault.mjs decrypt` on
+another checkout restores them, given the same key.
+
+- `init` creates the key once and never replaces it. Back it up outside this repo, for example in a
+  password manager. Without it the encrypted files cannot be recovered. CI or another machine can pass it
+  as `MWVAULT_KEY` (64 hex characters) instead of the file.
+- `encrypt` skips unchanged files and refuses to overwrite ciphertext that does not open with the current
+  key (pass `--force` to override). Each file is bound to its path, so swapping two files makes decryption
+  fail.
+- `status` shows what is not encrypted yet. `check` fails if plaintext or the key is tracked by git.
+- Enable the guard once per clone: `git config core.hooksPath scripts/hooks`.
+- Tests: `node --test Tests/vault.test.mjs`.
+
+Ciphertext in a public repo stays public forever, so a leaked key exposes every past version of every
+file. Treat the key like a password and rotate it by re-encrypting with `--force` if it leaks.
+
 ## Permissions
 
 The app reads window titles, focus and positions through the **Accessibility** API. It does **not** use
