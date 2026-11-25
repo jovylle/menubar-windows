@@ -31,7 +31,7 @@ enum StripLayout {
     static let minimumStripWidth: CGFloat = 120
     static let pillHeight: CGFloat = 22
     static let pillFontSize: CGFloat = 12
-    static let pillGap: CGFloat = 4
+    static let pillGap: CGFloat = 1
     static let minimumPillWidth: CGFloat = 44
     static let iconSize: CGFloat = 14
 }

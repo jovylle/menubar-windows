@@ -1,5 +1,5 @@
 // PillView.swift
-// One clickable window pill: app icon plus short title on a dark translucent capsule.
+// One clickable window pill: app icon plus short title as a square translucent tab flush with the top of the screen.
 //
 // Gotchas:
 // - The strip panel never becomes key, so the pill must accept first mouse or the first click is lost.
@@ -26,6 +26,7 @@ final class PillView: NSView {
     private let highlight = NSView()
     private let iconView = NSImageView()
     private let label = NSTextField(labelWithString: "")
+    private let underline = NSView()
     private let onClick: () -> Void
     /// Width this pill would take at its text's natural length.
     let naturalWidth: CGFloat
@@ -51,18 +52,21 @@ final class PillView: NSView {
         background.state = .active
         background.wantsLayer = true
         background.layer?.masksToBounds = true
-        background.layer?.borderWidth = model.isActive ? 1 : 0.5
-        background.layer?.borderColor = (model.isActive
-            ? NSColor.controlAccentColor
-            : NSColor.white.withAlphaComponent(0.15)).cgColor
         addSubview(background)
 
-        // Brightens the active pill. Lives inside the effect view so it is clipped to the capsule.
+        // Brightens the active pill. Lives inside the effect view so it is clipped to the tab.
         highlight.wantsLayer = true
         highlight.layer?.backgroundColor = NSColor.white
             .withAlphaComponent(model.isActive ? 0.22 : 0.04).cgColor
         highlight.autoresizingMask = [.width, .height]
         background.addSubview(highlight)
+
+        // Square tab flush with the top of the screen. The active tab gets an accent underline.
+        if model.isActive {
+            underline.wantsLayer = true
+            underline.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
+            addSubview(underline)
+        }
 
         iconView.image = model.icon
         iconView.imageScaling = .scaleProportionallyUpOrDown
@@ -80,7 +84,8 @@ final class PillView: NSView {
     override func layout() {
         super.layout()
         background.frame = bounds
-        background.layer?.cornerRadius = bounds.height / 2
+        background.layer?.cornerRadius = 0
+        underline.frame = NSRect(x: 0, y: 0, width: bounds.width, height: 2)
 
         var x = Self.horizontalPadding
         if !iconView.isHidden {

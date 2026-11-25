@@ -157,9 +157,9 @@ final class StripContentView: NSView {
         for (pill, pillWidth) in zip(pills, widths) {
             pill.frame = NSRect(
                 x: x,
-                y: (height - StripLayout.pillHeight) / 2,
+                y: 0,
                 width: pillWidth,
-                height: StripLayout.pillHeight
+                height: height
             )
             x += pillWidth + gap
         }
