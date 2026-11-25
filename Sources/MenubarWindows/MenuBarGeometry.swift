@@ -91,30 +91,36 @@ enum MenuBarGeometry {
         AX.setTimeout(app)
         guard let bar = AX.element(app, "AXMenuBar") else { return nil }
 
-        if let barPos = AX.point(bar, "AXPosition"), let barSize = AX.size(bar, "AXSize"),
-           barSize.height > 0, reservedMenuBarHeight(screen) == 0 {
-            let r = cocoaRect(fromTopLeft: CGRect(origin: barPos, size: barSize))
-            if r.midX >= screen.frame.minX, r.midX <= screen.frame.maxX, r.midY >= screen.frame.midY {
-                externalBarHeights[NSStringFromRect(screen.frame)] = barSize.height
-            }
-        }
-        let bandBottom = screen.frame.maxY - menuBarHeight(screen)
-        var maxX: CGFloat?
+        // AX reports the menu titles for one display only (the one that is currently showing them).
+        // Every display draws the same titles at the same offset from its own left edge, so measure
+        // on that owner display and translate the result to the requested screen.
+        var rects: [CGRect] = []
         for item in AX.elements(bar, "AXChildren") {
             guard let position = AX.point(item, "AXPosition"),
                   let size = AX.size(item, "AXSize") else {
                 continue
             }
-            let rect = cocoaRect(fromTopLeft: CGRect(origin: position, size: size))
-            // Keep only items inside this screen's menu bar band and horizontal range.
-            guard rect.midY >= bandBottom,
-                  rect.midX >= screen.frame.minX,
-                  rect.midX <= screen.frame.maxX else {
-                continue
-            }
-            maxX = max(maxX ?? rect.maxX, rect.maxX)
+            rects.append(cocoaRect(fromTopLeft: CGRect(origin: position, size: size)))
         }
-        return maxX
+        guard let first = rects.first,
+              let owner = NSScreen.screens.first(where: {
+                  $0.frame.minX <= first.midX && first.midX <= $0.frame.maxX
+                      && $0.frame.minY <= first.midY && first.midY <= $0.frame.maxY
+              }) else {
+            return nil
+        }
+
+        if reservedMenuBarHeight(owner) == 0,
+           let barSize = AX.size(bar, "AXSize"),
+           barSize.height > 0 {
+            externalBarHeights[NSStringFromRect(owner.frame)] = barSize.height
+        }
+
+        let relativeMaxX = rects
+            .filter { owner.frame.minX <= $0.midX && $0.midX <= owner.frame.maxX }
+            .map { $0.maxX - owner.frame.minX }
+            .max()
+        return relativeMaxX.map { screen.frame.minX + $0 }
     }
 
     /// Left edge (Cocoa x) of the leftmost status item on this screen's menu bar, or nil if none.
