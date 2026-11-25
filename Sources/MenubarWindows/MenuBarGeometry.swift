@@ -28,6 +28,8 @@ enum StripLayout {
     static let stripWidth: CGFloat = 560
     /// Gap between the notch and the strip's right edge.
     static let notchGap: CGFloat = 12
+    /// Status item windows are never wider than this. Wider status-level windows are ignored.
+    static let maxStatusItemWidth: CGFloat = 160
     /// The panel extends this far above the top edge of the screen (a negative top margin), so a click
     /// with the pointer pushed against the very top still lands on a tab.
     static let topOverscan: CGFloat = 6
@@ -180,7 +182,9 @@ enum MenuBarGeometry {
                   (info[kCGWindowOwnerPID as String] as? Int) != ownPid,
                   let dict = info[kCGWindowBounds as String] as? NSDictionary,
                   let rect = CGRect(dictionaryRepresentation: dict) else { continue }
-            guard rect.minY >= topY - 1, rect.minY < topY + band,
+            // Status items are small. A wide window at this level is an overlay, not an icon.
+            guard rect.width <= StripLayout.maxStatusItemWidth,
+                  rect.minY >= topY - 1, rect.minY < topY + band,
                   rect.midX >= screen.frame.midX - 40, rect.midX <= screen.frame.maxX else { continue }
             minX = min(minX ?? rect.minX, rect.minX)
         }
@@ -223,7 +227,8 @@ enum MenuBarGeometry {
         }
         // Never overlap the right-hand status icons: when they reach into the strip, pull the right
         // edge back and slide left to keep the width.
-        if let statusMinX = statusItemsMinX(on: screen) {
+        // On a notched screen the strip lives left of the notch and the status icons sit right of it.
+        if screen.auxiliaryTopLeftArea == nil, let statusMinX = statusItemsMinX(on: screen) {
             hi = min(hi, statusMinX - StripLayout.statusGap)
         }
         // The frontmost app's menu titles are ignored on purpose: the strip may sit on top of them.
@@ -233,7 +238,7 @@ enum MenuBarGeometry {
             // Top left: start right after the Apple menu and end at the notch (or after `width`).
             lo = screen.frame.minX + StripLayout.leftPlacementInset
             hi = min(lo + width, screen.auxiliaryTopLeftArea.map { $0.maxX - StripLayout.notchGap } ?? .greatestFiniteMagnitude)
-            if let statusMinX = statusItemsMinX(on: screen) {
+            if screen.auxiliaryTopLeftArea == nil, let statusMinX = statusItemsMinX(on: screen) {
                 hi = min(hi, statusMinX - StripLayout.statusGap)
             }
             anchor = .leading
