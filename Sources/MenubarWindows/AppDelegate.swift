@@ -98,7 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
         }
         refresh()
         // The new app's menu titles reach Accessibility a moment after activation, so measure again.
-        for delay in [0.15, 0.4] {
+        for delay in [0.15, 0.4, 0.9] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 self?.refresh()
             }

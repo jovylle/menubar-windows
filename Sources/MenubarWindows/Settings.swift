@@ -103,7 +103,7 @@ final class Settings: ObservableObject {
         static let shrinkWhenCrowded = true
         static let style = TabStyle.square
         static let theme = ColorTheme.system
-        static let tabHeightPercent: Double = 95
+        static let tabHeightPercent: Double = 85
         static let indicator = ActiveIndicator.brighterFill
         static let useSystemAccent = true
         static let customAccent: [Double] = [0.95, 0.55, 0.15, 1]
@@ -111,7 +111,7 @@ final class Settings: ObservableObject {
         static let stripWidth: Double = 560
         static let alignment = StripAlignment.center
         static let placement = StripPlacement.middle
-        static let coverMenuTitles = false
+        static let coverMenuTitles = true
         static let maxTabs = 8
         static let showOnAllDisplays = true
         static let hideWhenSingleWindow = false
