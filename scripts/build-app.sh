@@ -54,7 +54,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSHumanReadableCopyright</key>
-    <string>Copyright © $YEAR. All rights reserved (private beta).</string>
+    <string>Copyright © $YEAR Jovylle Bermudez. MIT License.</string>
 </dict>
 </plist>
 PLIST

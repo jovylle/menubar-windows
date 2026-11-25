@@ -2,7 +2,7 @@
 
 Your windows, as tabs in the empty middle of the menu bar.
 
-MenubarWindows is a small, free macOS app (private beta) that draws a strip of window tabs **inside the
+MenubarWindows is a small, free, open source macOS app (MIT) that draws a strip of window tabs **inside the
 menu bar**, one tab per window on that display. Click a tab to bring its window forward. The tabs reach
 the very top edge of the screen, so you can push the pointer up and click without aiming.
 
@@ -178,8 +178,7 @@ xcrun stapler staple build/MenubarWindows-<version>.dmg
 spctl --assess --type open --context context:primary-signature -v build/MenubarWindows-<version>.dmg
 ```
 
-Also before a public release: bump `VERSION`, update `CHANGELOG.md`, replace the placeholder `LICENSE`,
-and fill in the waitlist link on the site.
+Also before a public release: bump `VERSION`, update `CHANGELOG.md`, and publish the site.
 
 ## Project layout
 
@@ -211,5 +210,5 @@ Sources/MenubarWindows/
   ListCommand.swift              --list output
 Tests/MenubarWindowsCoreTests/   ordering, label, active tab, contrast and filter tests
 scripts/                         app-info.sh, build-app.sh, make-dmg.sh, make-icon.sh(+.swift), test.sh
-site/                            private-beta landing page (static, offline)
+site/                            landing page (static, offline)
 ```

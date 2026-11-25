@@ -20,7 +20,7 @@ enum AppInfo {
 
     static var copyright: String {
         Bundle.main.object(forInfoDictionaryKey: "NSHumanReadableCopyright") as? String
-            ?? "All rights reserved."
+            ?? "MIT License."
     }
 
     /// True when running from a built .app bundle (needed for Launch at login).

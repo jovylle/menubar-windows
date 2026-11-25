@@ -399,7 +399,7 @@ private struct AboutPane: View {
                 .multilineTextAlignment(.center)
             Text("Version \(AppInfo.version)")
                 .monospacedDigit()
-            Text("Private beta. No network access and no analytics: nothing leaves your Mac.")
+            Text("Free and open source (MIT). No network access and no analytics: nothing leaves your Mac.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

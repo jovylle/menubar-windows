@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 (private beta, unreleased)
+## 0.1.0 (unreleased)
 
 First productized build of the menu bar window switcher.
 

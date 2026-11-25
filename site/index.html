@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MenubarWindows: your windows, as tabs in the menu bar</title>
-<meta name="description" content="A free macOS app that puts a tab for every window into the empty middle of the menu bar. Private beta.">
+<meta name="description" content="A free macOS app that puts a tab for every window into the empty middle of the menu bar. Free and open source.">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="assets/icon.png">
 <style>
@@ -234,7 +234,7 @@
   details[open] summary::after { content: "−"; }
   details p { color: var(--ink-2); margin: 10px 0 0; max-width: 66ch; }
 
-  /* Waitlist */
+  /* Get it */
   .beta { margin-top: 88px; background: var(--ink); color: var(--paper); border-radius: 18px; padding: clamp(28px, 5vw, 56px); display: grid; grid-template-columns: 1.3fr 1fr; gap: 32px; align-items: end; }
   .beta h2 { color: var(--paper); }
   .beta p { color: color-mix(in srgb, var(--paper) 75%, var(--ink)); margin: 14px 0 0; }
@@ -282,18 +282,18 @@
       <a href="#settings">Settings</a>
       <a href="#faq">FAQ</a>
     </nav>
-    <span class="pill-status">Private beta</span>
+    <span class="pill-status">Open source</span>
   </div>
 </header>
 
 <main id="main">
   <div class="wrap hero" id="top">
-    <p class="kicker">Free macOS app · private beta</p>
+    <p class="kicker">Free and open source macOS app</p>
     <h1>Your windows, as tabs in the <em>empty middle</em> of the menu bar.</h1>
     <p class="lede">MenubarWindows gives every window on a display its own tab, right where your menu bar has nothing to say. Push the pointer to the top, click, and you are there.</p>
     <div class="hero-actions">
-      <a class="button" href="#waitlist">Join the private beta</a>
-      <span class="note">macOS 13 or later. Not notarized yet.</span>
+      <a class="button" href="#get">Get it</a>
+      <span class="note">macOS 13 or later, Apple silicon. First builds are not notarized yet.</span>
     </div>
 
     <div class="stage" aria-hidden="false">
@@ -412,22 +412,22 @@
         <p>Yes. It is free, with no account and no in-app purchases.</p>
       </details>
       <details>
-        <summary>Is the beta build signed?</summary>
-        <p>Not yet for distribution. Beta builds are not notarized by Apple, so macOS will warn the first time you open one. Notarization is planned before a public release.</p>
+        <summary>Is the build signed?</summary>
+        <p>Not yet for distribution. Early builds are not notarized by Apple, so macOS will warn the first time you open one. You can also build it yourself from the source. Notarization is planned.</p>
       </details>
     </div>
 
-    <div class="beta" id="waitlist">
+    <div class="beta" id="get">
       <div>
-        <h2>Private beta. Join the waitlist.</h2>
-        <p>The beta is small and private for now. Ask to join and you will get a build when there is room.</p>
+        <h2>Free and open source.</h2>
+        <p>MIT licensed. Read the code, build it yourself, or install with Homebrew once the first release is out.</p>
       </div>
       <div>
-        <!-- TODO: replace "#" with the real waitlist mailto: link or form URL before sharing this page. -->
-        <a class="button" href="#">Ask to join the beta</a>
+        <a class="button" href="https://github.com/jovylle/menubar-windows">View the source on GitHub</a>
         <ul>
           <li>Free</li>
           <li>macOS 13 or later</li>
+          <li>Homebrew cask planned</li>
           <li>Not notarized yet</li>
         </ul>
       </div>
@@ -437,7 +437,7 @@
 
 <footer>
   <div class="wrap">
-    <span>MenubarWindows · private beta</span>
+    <span>MenubarWindows · MIT licensed</span>
     <span>No network access. No analytics. This page loads nothing from other sites.</span>
   </div>
 </footer>
