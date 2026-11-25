@@ -13,9 +13,11 @@ enum AppInfo {
     static let bundleIdentifier = "com.jovylle.menubarwindows"
     static let tagline = "Your windows, as tabs in the empty middle of the menu bar."
 
-    /// CFBundleShortVersionString from the app bundle, or "dev" when run with `swift run`.
+    /// CFBundleShortVersionString from the app bundle, or "dev" when run with `swift run` (demo mode
+    /// reads VERSION from the source checkout instead).
     static var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+            ?? DemoMode.sourceVersion ?? "dev"
     }
 
     static var copyright: String {

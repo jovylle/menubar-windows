@@ -10,6 +10,24 @@ The product name, bundle identifier and tagline live in one place:
 [`Sources/MenubarWindows/AppInfo.swift`](Sources/MenubarWindows/AppInfo.swift). The scripts read them
 from there (`scripts/app-info.sh`), and the version comes from [`VERSION`](VERSION).
 
+## Screenshots
+
+Captured from the real app in demo mode (invented apps and windows, see below).
+
+![Six window tabs in the menu bar with the right-click menu open below the active tab](assets/screenshots/hero.png)
+
+| | |
+| --- | --- |
+| ![Pure black theme](assets/screenshots/hero-black.png) | ![Settings, Tabs and order](assets/screenshots/settings-tabs.png) |
+| Pure black theme | Settings, Tabs and order |
+| ![Settings, Appearance](assets/screenshots/settings-appearance.png) | ![First-run guide](assets/screenshots/onboarding.png) |
+| Settings, Appearance | First-run guide |
+
+More in [`assets/screenshots/`](assets/screenshots/): the strip on its own (`strip-light.png`,
+`strip-black.png`, `strip-three.png`, `strip-compact.png` with eight icon-only tabs), the right-click
+menu (`context-menu.png`, `context-menu-dark.png`, `strip-menu.png`), every Settings pane and the order
+picker. The two hero images place the real strip and menu captures on a drawn menu bar.
+
 ## Features
 
 - Tabs live in the unused middle of the menu bar, left of the status icons, on every display that shows
@@ -96,6 +114,43 @@ appearance, `-mw.debugAppearance dark` (or `light`) forces an appearance for one
 
 The bare binary and the bundle keep separate settings: the defaults domain is the executable name for
 `swift run` and the bundle identifier for the app.
+
+## Screenshots and demo mode
+
+`-mw.demo YES` replaces the real windows with invented ones (Draftpad, Shellbox, Mockups, Planner,
+Pagefold, Statline, Tunebox, Inkwell) with icons drawn in code, so a screenshot or video never shows your
+own apps. These are debug launch arguments; they are not in the Settings window.
+
+| Argument | Effect |
+| --- | --- |
+| `-mw.demo YES` | Fake windows, fake display names in Settings, Displays, permission shown as granted. Clicking a fake tab only moves the active marker; close, minimize and middle-click do nothing. |
+| `-mw.demoCount <n>` | 1 to 8 fake windows (default 6). |
+| `-mw.demoActive <index>` | Which fake tab is focused, from 0 (default 1). |
+| `-mw.demoMenu <index>` | Opens that tab's right-click menu about a second after launch. |
+| `-mw.demoBackdrop YES` | A plain dark blue window right behind the strip, owned by the app, so the real menu bar is covered. |
+| `-mw.openSettings YES` | Opens Settings at launch (also without demo mode). |
+| `-mw.settingsPane <name>` | `appearance`, `tabs`, `displays`, `behaviour`, `general` or `about`. |
+| `-mw.showOnboarding YES` | Opens the first-run guide at launch (also without demo mode). |
+
+Demo mode keeps its settings in a separate suite (`MenubarWindows.demo`) that is emptied at every demo
+launch, so it never changes your real settings. Other `-mw.` arguments still apply, for example
+`-mw.colorTheme black`. Fake windows only go to the first display's strip. In an unbundled build, demo
+mode shows the icon from `Resources/` and the version from `VERSION` in About.
+
+To capture everything again:
+
+```sh
+swift build -c release
+./scripts/capture-screenshots.sh
+```
+
+The script launches `.build/release/MenubarWindows` once per shot (about three seconds each, around a
+minute in total), captures only that process's own windows with `screencapture -l <windowID> -o`, and
+quits only that process. Window IDs come from CGWindowList filtered by the launched process ID, so
+another running copy of the app is never captured. It writes `assets/screenshots/`, composes the two
+hero images with `scripts/screenshot-tool.swift` (CoreGraphics, no dependencies), and copies four images
+to `site/assets/`. Settings shots are retaken when the window was not active. Look at every image before
+committing it.
 
 ## Private files in a public repo
 
@@ -192,6 +247,7 @@ Sources/MenubarWindowsCore/
   FocusMatch.swift               which tab is active (focused, else main window, timeout rule)
   TabPalette.swift               tab colors per theme and state, WCAG contrast
   WindowFilterRule.swift         helper-window filter by size and AX subrole
+  DemoData.swift                 invented windows, apps and displays for demo mode
 Sources/MenubarWindows/
   AppInfo.swift                  display name, bundle id, tagline (single source)
   main.swift                     entry point, --version, --list
@@ -208,7 +264,10 @@ Sources/MenubarWindows/
   WindowRaiser.swift             raise, close and minimize through AX
   AccessibilityHelpers.swift     AX wrappers and _AXUIElementGetWindow
   ListCommand.swift              --list output
-Tests/MenubarWindowsCoreTests/   ordering, label, active tab, contrast and filter tests
-scripts/                         app-info.sh, build-app.sh, make-dmg.sh, make-icon.sh(+.swift), test.sh
+  DemoMode.swift                 demo mode: fake windows and icons, backdrop, launch-only flags
+Tests/MenubarWindowsCoreTests/   ordering, label, active tab, contrast, filter and demo data tests
+scripts/                         app-info.sh, build-app.sh, make-dmg.sh, make-icon.sh(+.swift), test.sh,
+                                 capture-screenshots.sh and screenshot-tool.swift
+assets/screenshots/              screenshots captured in demo mode
 site/                            landing page (static, offline)
 ```

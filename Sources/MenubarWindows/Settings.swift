@@ -13,6 +13,7 @@
 // - Displays are identified by their CoreGraphics display UUID, which survives reboots and
 //   reconnects. NSScreen order and names are not stable enough.
 // - The custom accent color is stored as sRGB components; NSColor itself is not plist-safe.
+// - In demo mode `shared` reads and writes a separate, wiped suite (see DemoMode).
 
 import AppKit
 import Combine
@@ -95,7 +96,8 @@ enum StripAlignment: String, CaseIterable, Identifiable {
 }
 
 final class Settings: ObservableObject {
-    static let shared = Settings()
+    /// Demo mode (`-mw.demo YES`) uses a throwaway store so it never touches the real settings.
+    static let shared = Settings(store: DemoMode.isOn ? DemoMode.store : .standard)
 
     enum Defaults {
         static let order = TabOrderMode.automatic

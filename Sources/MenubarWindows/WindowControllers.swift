@@ -42,6 +42,7 @@ class HostedWindowController: NSObject, NSWindowDelegate {
             window.isReleasedWhenClosed = false
             window.delegate = self
             window.center()
+            if DemoMode.isOn { Self.centerOnSharpestScreen(window) }
             self.window = window
         }
         AppActivation.bringToFront()
@@ -50,6 +51,16 @@ class HostedWindowController: NSObject, NSWindowDelegate {
 
     func close() {
         window?.close()
+    }
+
+    /// Demo mode: put the window on the highest-resolution screen, so captures are retina.
+    private static func centerOnSharpestScreen(_ window: NSWindow) {
+        guard let screen = NSScreen.screens.max(by: { $0.backingScaleFactor < $1.backingScaleFactor }) else { return }
+        let area = screen.visibleFrame
+        window.setFrameOrigin(NSPoint(
+            x: (area.midX - window.frame.width / 2).rounded(),
+            y: (area.midY - window.frame.height / 2).rounded()
+        ))
     }
 
     func windowWillClose(_ notification: Notification) {

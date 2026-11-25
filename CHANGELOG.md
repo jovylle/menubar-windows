@@ -25,10 +25,19 @@ First productized build of the menu bar window switcher.
 - `--list` prints the active settings (including placement and tab height) and lists windows in tab
   order. `--version` prints the version.
 
+- Demo mode for screenshots and videos (`-mw.demo YES`, with `-mw.demoCount`, `-mw.demoActive`,
+  `-mw.demoMenu`, `-mw.demoBackdrop`): invented windows, drawn icons and invented display names, in a
+  throwaway settings suite. `-mw.openSettings`, `-mw.settingsPane` and `-mw.showOnboarding` open those
+  windows at launch.
+- `scripts/capture-screenshots.sh` captures the app's own windows only, and `assets/screenshots/` holds
+  the results. The landing page and README show them.
+
 ### Changed
 - Tabs no longer sort by app name then window ID; Automatic keeps first-seen order instead.
 
 ### Fixed
+- Tab labels no longer truncate when the tab is at its natural width: the width now includes the 4pt
+  that NSTextField pads around its text.
 - The focused window's tab often did not show as active. The app's focused window can be a helper
   window with no tab (Edge's Find bar, a popover); the main window is used then. Windows matched by
   bounds are matched by AX element too, and an AX timeout keeps the previous active tab.

@@ -8,28 +8,56 @@
 // - Help text sits under each control as secondary callout text; meaning is never color-only.
 // - The display list re-reads NSScreen.screens when screens change, so a newly plugged display shows.
 // - Hide durations are typed as text ("10, 30, 60") and only saved when they parse.
+// - `-mw.settingsPane <name>` picks the first pane (SettingsPane raw values). Demo mode shows invented
+//   displays and pinned app names (DemoMode), never the real ones.
 
 import AppKit
 import MenubarWindowsCore
 import SwiftUI
 
+enum SettingsPane: String, CaseIterable {
+    case appearance
+    case tabs
+    case displays
+    case behaviour
+    case general
+    case about
+
+    /// The pane named by `-mw.settingsPane`, else Appearance. "order" and "behavior" are accepted too.
+    static var initial: SettingsPane {
+        switch UserDefaults.standard.string(forKey: "mw.settingsPane")?.lowercased() {
+        case "order": return .tabs
+        case "behavior": return .behaviour
+        case let name?: return SettingsPane(rawValue: name) ?? .appearance
+        case nil: return .appearance
+        }
+    }
+}
+
 struct SettingsView: View {
     @ObservedObject var settings: Settings
+    @State private var pane = SettingsPane.initial
 
     var body: some View {
-        TabView {
+        TabView(selection: $pane) {
             AppearancePane(settings: settings)
                 .tabItem { Label("Appearance", systemImage: "paintbrush") }
+                .tag(SettingsPane.appearance)
             TabsPane(settings: settings)
                 .tabItem { Label("Tabs and order", systemImage: "rectangle.split.3x1") }
+                .tag(SettingsPane.tabs)
             DisplaysPane(settings: settings)
                 .tabItem { Label("Displays", systemImage: "display.2") }
+                .tag(SettingsPane.displays)
             BehaviourPane(settings: settings)
                 .tabItem { Label("Behaviour", systemImage: "slider.horizontal.3") }
+                .tag(SettingsPane.behaviour)
             GeneralPane(settings: settings)
                 .tabItem { Label("General", systemImage: "gearshape") }
+                .tag(SettingsPane.general)
             AboutPane(settings: settings)
                 .tabItem { Label("About", systemImage: "info.circle") }
+                .tag(SettingsPane.about)
         }
         .padding(.top, 8)
         .frame(width: 620, height: 600)
@@ -221,6 +249,7 @@ private struct TabsPane: View {
     }
 
     static func appName(for key: String) -> String {
+        if DemoMode.isOn { return DemoMode.appName(forKey: key) }
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: key) {
             return FileManager.default.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: "")
         }
@@ -240,7 +269,14 @@ private struct DisplaysPane: View {
         let detail: String
 
         static func current() -> [ScreenRow] {
-            NSScreen.screens.enumerated().map { index, screen in
+            if DemoMode.isOn {
+                return [
+                    ScreenRow(id: "demo-built-in", name: DemoData.displayNames[0],
+                              detail: "1512 x 982 pt, main display, has a notch"),
+                    ScreenRow(id: "demo-external", name: DemoData.displayNames[1], detail: "2560 x 1440 pt")
+                ]
+            }
+            return NSScreen.screens.enumerated().map { index, screen in
                 let size = "\(Int(screen.frame.width)) x \(Int(screen.frame.height)) pt"
                 var notes = [size]
                 if index == 0 { notes.append("main display") }

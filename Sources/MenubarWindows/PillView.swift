@@ -64,6 +64,8 @@ final class PillView: NSView {
     private static let font = NSFont.systemFont(ofSize: StripLayout.pillFontSize, weight: .medium)
     private static let horizontalPadding: CGFloat = 10
     private static let iconGap: CGFloat = 6
+    /// NSTextField pads its text by 2pt on each side, so a label exactly as wide as its text truncates.
+    private static let labelPadding: CGFloat = 4
     private static let roundedInset: CGFloat = 3
     private static let roundedRadius: CGFloat = 6
     /// Square style: radius of the bottom corners.
@@ -105,7 +107,7 @@ final class PillView: NSView {
         onClick = model.action
         onMiddleClick = model.middleClick
         let textWidth = model.text.isEmpty
-            ? 0 : ceil((model.text as NSString).size(withAttributes: [.font: Self.font]).width)
+            ? 0 : ceil((model.text as NSString).size(withAttributes: [.font: Self.font]).width) + Self.labelPadding
         let iconWidth = model.icon == nil ? 0 : StripLayout.iconSize
         let gap = (model.icon != nil && textWidth > 0) ? Self.iconGap : 0
         let flare = appearance.style == .square ? Self.flareRadius : 0

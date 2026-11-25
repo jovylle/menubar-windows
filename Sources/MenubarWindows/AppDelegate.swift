@@ -18,6 +18,8 @@
 //   activation. It forgets a window only when CGWindowList no longer lists it at all, so a window on
 //   another Space keeps its slot.
 // - In Automatic width the panel is trimmed to the tabs, so the update must run before the frame is set.
+// - Demo mode (DemoMode.swift) swaps the window source for invented windows and turns close, minimize
+//   and raise into no-ops. Every demo branch checks DemoMode.isOn, so the normal path is unchanged.
 
 import AppKit
 import Combine
@@ -41,6 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
     private var lastFocusedID: CGWindowID?
     private var refreshCount = 0
     private var iconCache: [pid_t: NSImage] = [:]
+    private var demoBackdrop: DemoBackdrop?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.mainMenu = MainMenu.make()
@@ -51,7 +54,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
         case "light": NSApp.appearance = NSAppearance(named: .aqua)
         default: break
         }
-        trusted = AXIsProcessTrusted()
+        trusted = DemoMode.isOn || AXIsProcessTrusted()
+        if DemoMode.isOn {
+            DemoMode.applyAppIcon()
+            // Feed the fake windows one at a time so the automatic order is the DemoData order.
+            for snapshot in DemoMode.snapshots { tracker.observe([snapshot]) }
+            if DemoMode.showsBackdrop { demoBackdrop = DemoBackdrop() }
+        }
 
         NotificationCenter.default.addObserver(
             self,
@@ -79,8 +88,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
         ]
 
         rebuildPanels()
-        if !trusted || !settings.hasCompletedOnboarding {
+        if DemoMode.showOnboardingAtLaunch || (!DemoMode.isOn && (!trusted || !settings.hasCompletedOnboarding)) {
             OnboardingWindowController.shared.show()
+        }
+        if DemoMode.openSettingsAtLaunch {
+            openSettings()
+        }
+        if DemoMode.isOn, DemoMode.openSettingsAtLaunch || DemoMode.showOnboardingAtLaunch {
+            // Activation is cooperative on macOS 14+ and the first request may be declined.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { AppActivation.bringToFront() }
+        }
+        if DemoMode.isOn, let index = DemoMode.menuTabIndex {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.strips.first?.panel.content.showContextMenu(forTabAt: index)
+            }
         }
     }
 
@@ -98,7 +119,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
     }
 
     @objc private func appActivated(_ notification: Notification) {
-        if trusted,
+        if trusted, !DemoMode.isOn,
            let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
            let focused = WindowProvider.focusedWindowID(pid: app.processIdentifier) {
             noteFocus(focused)
@@ -145,13 +166,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
             hiddenUntil = nil
         }
 
-        let windows = trusted ? WindowProvider.allWindows() : []
+        let windows = DemoMode.isOn ? DemoMode.windows : (trusted ? WindowProvider.allWindows() : [])
         if let focused = windows.first(where: \.isFocused) {
             noteFocus(focused.windowID)
         }
         tracker.observe(windows.map(\.snapshot))
         refreshCount += 1
-        if refreshCount % 20 == 0 {
+        if refreshCount % 20 == 0, !DemoMode.isOn {
             tracker.prune(keeping: WindowProvider.aliveWindowIDs())
             if iconCache.count > 200 { iconCache.removeAll() }
         }
@@ -174,7 +195,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
             if !trusted {
                 if index == 0 { models = [permissionPill] }
             } else {
-                let onScreen = orderedWindows(WindowProvider.windows(on: strip.screen, in: windows))
+                let candidates = DemoMode.isOn
+                    ? (index == 0 ? windows : [])
+                    : WindowProvider.windows(on: strip.screen, in: windows)
+                let onScreen = orderedWindows(candidates)
                 if !(settings.hideWhenSingleWindow && onScreen.count <= 1) {
                     let all = onScreen.map(pillModel(for:))
                     let limit = settings.maxTabs
@@ -192,6 +216,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
             let frame = region.panelFrame(contentWidth: width, mode: settings.widthMode)
             if strip.panel.frame != frame {
                 strip.panel.setFrame(frame, display: true)
+            }
+            if let demoBackdrop, index == 0 {
+                demoBackdrop.follow(frame)
             }
             if !strip.panel.isVisible {
                 strip.panel.orderFrontRegardless()
@@ -211,7 +238,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
     }
 
     private func pillModel(for window: WindowInfo) -> PillModel {
-        PillModel(
+        if DemoMode.isOn { return demoPillModel(for: window) }
+        return PillModel(
             key: String(window.windowID),
             text: window.label(settings.label),
             accessibilityText: TabLabel.accessibilityText(appName: window.appName, title: window.title),
@@ -224,6 +252,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
                 WindowRaiser.raise(window)
             },
             middleClick: { [weak self] in self?.close(window) }
+        )
+    }
+
+    /// A fake tab: clicking only moves the active marker; nothing touches a real window.
+    private func demoPillModel(for window: WindowInfo) -> PillModel {
+        PillModel(
+            key: String(window.windowID),
+            text: window.label(settings.label),
+            accessibilityText: TabLabel.accessibilityText(appName: window.appName, title: window.title),
+            icon: DemoMode.icon(appKey: window.appKey),
+            isActive: window.isFocused,
+            window: window,
+            action: { [weak self] in
+                DemoMode.activate(window.windowID)
+                self?.noteFocus(window.windowID)
+                self?.refresh()
+            }
         )
     }
 
@@ -249,6 +294,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
     }
 
     private func checkPermission() {
+        guard !DemoMode.isOn else { return }
         let nowTrusted = AXIsProcessTrusted()
         guard nowTrusted != trusted else { return }
         trusted = nowTrusted
@@ -270,11 +316,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
     func togglePin(_ window: WindowInfo) { settings.togglePin(window.appKey) }
 
     func close(_ window: WindowInfo) {
+        guard !DemoMode.isOn else { return }
         WindowRaiser.close(window)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.refresh() }
     }
 
     func minimize(_ window: WindowInfo) {
+        guard !DemoMode.isOn else { return }
         WindowRaiser.minimize(window)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.refresh() }
     }

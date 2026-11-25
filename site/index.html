@@ -193,6 +193,13 @@
   .glyph.g-lock::before { content: ""; position: absolute; left: 4px; top: -9px; width: 14px; height: 12px; border: 3px solid var(--ink); border-bottom: 0; border-radius: 8px 8px 0 0; box-sizing: border-box; }
 
   /* Settings mock */
+  .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .shots figure { margin: 0; }
+  .shots figure.wide { grid-column: 1 / -1; }
+  .shots img { display: block; width: 100%; height: auto; border-radius: 10px; box-shadow: var(--shadow); background: var(--paper-2); }
+  .shots img.plain { box-shadow: none; background: transparent; border-radius: 0; }
+  .shots figcaption { font: 13px/1.5 var(--mono); color: var(--ink-2); padding-top: 10px; }
+  @media (max-width: 760px) { .shots { grid-template-columns: 1fr; } }
   .mock {
     background: var(--card); border: 1px solid var(--rule); border-radius: 12px; box-shadow: var(--shadow);
     max-width: 760px; margin-inline: auto; overflow: hidden; font-size: 14px;
@@ -279,6 +286,7 @@
     <nav aria-label="Sections">
       <a href="#how">How it works</a>
       <a href="#features">Features</a>
+      <a href="#screenshots">Screenshots</a>
       <a href="#settings">Settings</a>
       <a href="#faq">FAQ</a>
     </nav>
@@ -351,8 +359,30 @@
     </div>
   </section>
 
+  <section id="screenshots" class="wrap" aria-labelledby="screenshots-title">
+    <div class="section-head"><span class="num">03 · Screenshots</span><h2 id="screenshots-title">The real app, with made-up windows.</h2></div>
+    <div class="shots">
+      <figure class="wide">
+        <img src="assets/hero.png" width="1920" height="1080" loading="lazy" alt="A menu bar with six window tabs in the middle: Draftpad, Shellbox, Mockups, Planner, Pagefold and Statline, each with a colored app icon. The Shellbox tab is active and brighter. Its right-click menu hangs below it with Hide for 10 seconds, Hide for 30 seconds, Hide for 1 minute, Pin Shellbox to the front, Close window, Minimize window, Settings and Quit MenubarWindows.">
+        <figcaption>The strip and its right-click menu, captured from the app in demo mode and placed on a drawn menu bar. The apps are invented.</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/hero-black.png" width="1920" height="1080" loading="lazy" alt="The same six tabs in the Pure black theme: black tabs with white labels on a dark menu bar, and a dark right-click menu below the active Shellbox tab.">
+        <figcaption>Pure black theme, in light or dark mode.</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/settings-tabs.png" width="1240" height="1264" loading="lazy" alt="The Settings window on the Tabs and order pane: a live preview of three tabs, the five tab order options with Automatic selected, and a pinned app, Planner, with an Unpin button.">
+        <figcaption>Settings, Tabs and order: live preview, five orders, pinned apps.</figcaption>
+      </figure>
+      <figure class="wide">
+        <img class="plain" src="assets/strip-compact.png" width="1216" height="70" loading="lazy" alt="Eight tabs that show only their app icons because the strip is crowded; the third tab is active.">
+        <figcaption>Crowded: with eight windows the tabs drop their labels and keep their icons.</figcaption>
+      </figure>
+    </div>
+  </section>
+
   <section id="settings" class="wrap" aria-labelledby="settings-title">
-    <div class="section-head"><span class="num">03 · Settings</span><h2 id="settings-title">Tune it once. Changes apply as you make them.</h2></div>
+    <div class="section-head"><span class="num">04 · Settings</span><h2 id="settings-title">Tune it once. Changes apply as you make them.</h2></div>
     <div class="mock" role="img" aria-label="Drawing of the Settings window on the Tabs and order pane: a live preview of three tabs, the tab order options with Automatic selected, a labels menu set to App name and title, and the shrink to icon-only toggle switched on.">
       <div class="mock-title"><span class="lights"><i></i><i></i><i></i></span><b>MenubarWindows Settings</b></div>
       <div class="mock-tabs"><span>Appearance</span><span aria-current="true">Tabs and order</span><span>Displays</span><span>Behaviour</span><span>General</span><span>About</span></div>
@@ -389,7 +419,7 @@
   </section>
 
   <section id="faq" class="wrap" aria-labelledby="faq-title">
-    <div class="section-head"><span class="num">04 · FAQ</span><h2 id="faq-title">Questions worth asking.</h2></div>
+    <div class="section-head"><span class="num">05 · FAQ</span><h2 id="faq-title">Questions worth asking.</h2></div>
     <div class="faq">
       <details>
         <summary>Why does it need Accessibility permission?</summary>

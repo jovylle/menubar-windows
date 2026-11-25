@@ -160,6 +160,20 @@ final class StripContentView: NSView {
         NSMenu.popUpContextMenu(contextMenu(for: window), with: event, for: self)
     }
 
+    /// Demo mode (`-mw.demoMenu`): opens the menu a right-click on tab `index` opens, at the tab's
+    /// center. The event is built in-process and handed to AppKit; nothing is posted to the system.
+    func showContextMenu(forTabAt index: Int) {
+        guard pills.indices.contains(index), let window else { return }
+        let pill = pills[index]
+        let point = convert(NSPoint(x: pill.frame.midX - 20, y: pill.frame.midY), from: track)
+        guard let event = NSEvent.mouseEvent(
+            with: .rightMouseDown, location: convert(point, to: nil), modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+            context: nil, eventNumber: 0, clickCount: 1, pressure: 1
+        ) else { return }
+        NSMenu.popUpContextMenu(contextMenu(for: pill.model.window), with: event, for: self)
+    }
+
     private func contextMenu(for window: WindowInfo?) -> NSMenu {
         let menu = NSMenu()
         for seconds in actions?.hideDurations ?? Settings.Defaults.hideDurations {

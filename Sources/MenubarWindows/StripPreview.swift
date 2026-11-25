@@ -6,6 +6,8 @@
 // Gotcha: the made-up windows are chosen so every order mode gives a different order:
 //   Automatic: Mail, Terminal, Notes   Recent: Terminal, Mail, Notes   A to Z: Mail, Notes, Terminal
 //   Left to right: Terminal, Notes, Mail   Pinned (Notes pinned): Notes, Mail, Terminal
+// - Demo mode renames them to invented apps (Draftpad, Shellbox, Planner, same order rules) with
+//   generated icons, so no real app shows in screenshots.
 
 import AppKit
 import MenubarWindowsCore
@@ -28,7 +30,19 @@ final class PreviewBarView: NSView {
     private let apple = NSImageView()
     private static let barHeight: CGFloat = 26
 
-    private static let samples: [(WindowSnapshot, String)] = [
+    private static var samples: [(WindowSnapshot, String)] { DemoMode.isOn ? demoSamples : realSamples }
+
+    private static let demoSamples: [(WindowSnapshot, String)] = realSamples.map { sample, _ in
+        let names = ["preview.mail": "Draftpad", "preview.terminal": "Shellbox", "preview.notes": "Planner"]
+        let name = names[sample.appKey] ?? "Draftpad"
+        let key = "demo.\(name.lowercased())"
+        let titles = ["Draftpad": "Launch notes", "Shellbox": "build", "Planner": "Week"]
+        return (WindowSnapshot(windowID: sample.windowID, pid: sample.pid, appKey: key, appName: name,
+                               title: titles[name] ?? "", frame: sample.frame,
+                               lastFocusedAt: sample.lastFocusedAt), key)
+    }
+
+    private static let realSamples: [(WindowSnapshot, String)] = [
         (WindowSnapshot(windowID: 1, pid: 1, appKey: "preview.mail", appName: "Mail", title: "Inbox",
                         frame: CGRect(x: 700, y: 100, width: 600, height: 500),
                         lastFocusedAt: Date(timeIntervalSince1970: 100)), "com.apple.mail"),
@@ -74,7 +88,7 @@ final class PreviewBarView: NSView {
             Self.samples.map(\.0),
             mode: mode,
             firstSeen: firstSeen,
-            pinnedApps: mode == .pinnedFirst ? ["preview.notes"] : []
+            pinnedApps: mode == .pinnedFirst ? [Self.samples[2].0.appKey] : []
         )
         let iconFor = Dictionary(uniqueKeysWithValues: Self.samples.map { ($0.0.windowID, $0.1) })
         let models = ordered.map { window in
@@ -90,7 +104,7 @@ final class PreviewBarView: NSView {
         var options = StripOptions.current
         options.topOverscan = 0
         strip.update(models, appearance: .current(inWindow: true), options: options)
-        setAccessibilityLabel("Preview: tabs \(ordered.map(\.appName).joined(separator: ", ")), Terminal active")
+        setAccessibilityLabel("Preview: tabs \(ordered.map(\.appName).joined(separator: ", ")), \(Self.samples[1].0.appName) active")
         needsLayout = true
     }
 
@@ -122,6 +136,7 @@ final class PreviewBarView: NSView {
     private static var iconCache: [String: NSImage] = [:]
 
     private static func icon(bundleID: String) -> NSImage? {
+        if DemoMode.isOn { return DemoMode.icon(appKey: bundleID) }
         if let cached = iconCache[bundleID] { return cached }
         let image: NSImage?
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {

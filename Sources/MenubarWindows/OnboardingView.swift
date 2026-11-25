@@ -15,14 +15,15 @@ import Combine
 import SwiftUI
 
 final class PermissionMonitor: ObservableObject {
-    @Published private(set) var isTrusted = AXIsProcessTrusted()
+    /// Demo mode shows the granted state, as on a set-up Mac.
+    @Published private(set) var isTrusted = DemoMode.isOn || AXIsProcessTrusted()
     private var timer: AnyCancellable?
 
     init() {
         timer = Timer.publish(every: 1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
-                let now = AXIsProcessTrusted()
+                let now = DemoMode.isOn || AXIsProcessTrusted()
                 if self?.isTrusted != now { self?.isTrusted = now }
             }
     }
@@ -158,7 +159,7 @@ struct MenuBarIllustration: View {
                 HStack(spacing: 0) {
                     HStack(spacing: 10) {
                         Image(systemName: "apple.logo")
-                        Text("Finder").bold()
+                        Text(DemoMode.isOn ? "Draftpad" : "Finder").bold()
                         Text("File")
                         Text("Edit")
                     }
@@ -166,9 +167,9 @@ struct MenuBarIllustration: View {
                     .padding(.leading, 12)
                     Spacer(minLength: 8)
                     HStack(spacing: 1) {
-                        tab("Mail", active: false)
-                        tab("Notes", active: true)
-                        tab("Terminal", active: false)
+                        tab(DemoMode.isOn ? "Draftpad" : "Mail", active: false)
+                        tab(DemoMode.isOn ? "Planner" : "Notes", active: true)
+                        tab(DemoMode.isOn ? "Shellbox" : "Terminal", active: false)
                     }
                     Spacer(minLength: 8)
                     HStack(spacing: 8) {
