@@ -182,17 +182,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
             }
             strip.panel.content.update(models, overflow: overflow)
             let width = strip.panel.content.preferredWidth(maximum: region.frame.width)
-            var frame = region.panelFrame(contentWidth: width, mode: settings.widthMode)
-            // Cover the menu titles: widen the panel to the left (to just after the Apple menu) and to the
-            // right (to the end of the titles), and fill both sides of the tabs with a bar-colored filler.
-            var tabsRange: StripContentView.TabsRange?
-            if settings.coverMenuTitles, let menusMaxX = region.menusMaxX, menusMaxX > region.coverLeft {
-                let left = min(frame.minX, region.coverLeft)
-                let right = max(frame.maxX, min(menusMaxX, region.frame.maxX))
-                tabsRange = StripContentView.TabsRange(offset: frame.minX - left, width: frame.width)
-                frame = NSRect(x: left, y: frame.minY, width: right - left, height: frame.height)
-            }
-            strip.panel.content.tabsRange = tabsRange
+            let frame = region.panelFrame(contentWidth: width, mode: settings.widthMode)
             if strip.panel.frame != frame {
                 strip.panel.setFrame(frame, display: true)
             }

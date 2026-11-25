@@ -35,8 +35,6 @@ enum StripLayout {
     static let minimumLeftInset: CGFloat = 130
     /// Left placement starts this far from the screen edge, which keeps the Apple menu clear.
     static let leftPlacementInset: CGFloat = 42
-    /// Gap between the end of the covered menu titles and the filler's right edge.
-    static let coverPadding: CGFloat = 12
     /// Gap between the strip and the leftmost status icon.
     static let statusGap: CGFloat = 12
     /// Below this width the strip is hidden.
@@ -66,10 +64,7 @@ struct FreeStrip {
     let anchor: Anchor
     /// Short note for `--list` about how the region was found.
     let leftSource: String
-    /// Cocoa x where the frontmost app's menu titles end on this screen (plus padding), if known.
-    var menusMaxX: CGFloat?
-    /// Cocoa x where covering the menu titles starts (just after the Apple menu).
-    var coverLeft: CGFloat = 0
+
 
     /// The panel frame for tabs that need `contentWidth`. Automatic width trims the region to the
     /// tabs at its anchor; fixed width uses the whole region.
@@ -255,9 +250,7 @@ enum MenuBarGeometry {
         return FreeStrip(
             frame: frame,
             anchor: anchor,
-            leftSource: "menus ignored, anchor \(anchor.rawValue)",
-            menusMaxX: axMaxX.map { $0 + StripLayout.coverPadding },
-            coverLeft: screen.frame.minX + StripLayout.leftPlacementInset
+            leftSource: "menus ignored, anchor \(anchor.rawValue)"
         )
     }
 }
