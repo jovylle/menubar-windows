@@ -69,13 +69,18 @@ final class PillView: NSView {
     private static let bottomRadius: CGFloat = 9
     /// Square style: how far the top of the tab flares out past its body, like a browser tab turned
     /// upside down. The body is narrower than the frame by this much on each side.
-    private static let flareRadius: CGFloat = 8
+    static let flareRadius: CGFloat = 8
 
     private let background = NSVisualEffectView()
     private let highlight = NSView()
     private let iconView = NSImageView()
     private let label = NSTextField(labelWithString: "")
     private let underline = NSView()
+    private let divider = NSView()
+    /// A faint line on the left body edge, between two neighbouring inactive tabs of the same color.
+    var showsDivider = false {
+        didSet { divider.isHidden = !showsDivider }
+    }
     private let appearanceStyle: PillAppearance
     private let onClick: () -> Void
     private let onMiddleClick: (() -> Void)?
@@ -156,6 +161,9 @@ final class PillView: NSView {
         label.maximumNumberOfLines = 1
         addSubview(label)
 
+        divider.wantsLayer = true
+        divider.isHidden = true
+        addSubview(divider)
         applyColors()
 
         // Minimized windows are dimmed. The tooltip and VoiceOver also say so, so it is not
@@ -205,6 +213,7 @@ final class PillView: NSView {
         }
         highlight.layer?.backgroundColor = fill.cgColor
         label.textColor = text
+        divider.layer?.backgroundColor = text.withAlphaComponent(0.22).cgColor
     }
 
     override func viewDidChangeEffectiveAppearance() {
@@ -235,6 +244,7 @@ final class PillView: NSView {
             background.layer?.mask = mask
         }
         highlight.frame = background.bounds
+        divider.frame = NSRect(x: flare - 0.5, y: 7, width: 1, height: max(0, bounds.height - 14))
         underline.frame = NSRect(x: 0, y: 0, width: background.bounds.width, height: 2)
 
         let showLabel = showsLabel

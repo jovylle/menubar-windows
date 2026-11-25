@@ -132,12 +132,20 @@ final class StripContentView: NSView {
 
     private func pill(atLocal local: NSPoint) -> PillView? {
         let inTrack = track.convert(local, from: self)
-        let half = gap / 2
-        return pills.first { inTrack.x >= $0.frame.minX - half && inTrack.x <= $0.frame.maxX + half }
+        // Square tabs overlap in their flared corners, so match on the tab bodies first. The outer
+        // flares of the first and last tab fall back to the whole frame.
+        let flare = pillAppearance.style == .square ? PillView.flareRadius : 0
+        let half = max(0, gap) / 2
+        return pills.first { inTrack.x >= $0.frame.minX + flare - half && inTrack.x < $0.frame.maxX - flare + half }
+            ?? pills.first { inTrack.x >= $0.frame.minX && inTrack.x <= $0.frame.maxX }
     }
 
+    /// Space between neighbouring tabs. Square tabs overlap by their two flares, so their bodies touch
+    /// and the flared corners merge (no gap in the bar between them).
     private var gap: CGFloat {
-        pillAppearance.style == .rounded ? StripLayout.roundedPillGap : StripLayout.pillGap
+        pillAppearance.style == .rounded
+            ? StripLayout.roundedPillGap
+            : -2 * PillView.flareRadius
     }
 
     // MARK: Menus
@@ -308,6 +316,13 @@ final class StripContentView: NSView {
             }
             track.addSubview(pill)
             return pill
+        }
+        for (index, pill) in pills.enumerated() {
+            pill.showsDivider = index > 0 && !pill.model.isActive && !pills[index - 1].model.isActive
+        }
+        // The active tab is drawn last so its flared corners are not covered by a neighbour.
+        if let active = pills.first(where: { $0.model.isActive }) {
+            track.addSubview(active, positioned: .above, relativeTo: nil)
         }
         layoutPills()
     }
