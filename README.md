@@ -1,7 +1,7 @@
 # MenubarWindows
 
-A small macOS accessory app that draws a strip of window pills **inside the menu bar**, in the empty
-space between the frontmost app's menu titles (File, Edit, View, ...) and the status icons on the right.
+A small macOS accessory app that draws a strip of window tabs **inside the menu bar**, in the middle of
+the bar, left of the status icons. It ignores the frontmost app's menu titles and may sit on top of them.
 Each pill is one open window on that screen. The focused window's pill is highlighted. Clicking a pill
 raises that window and activates its app.
 
@@ -27,7 +27,8 @@ swift build -c release
 .build/release/MenubarWindows
 ```
 
-Quit: right-click anywhere on the strip and choose **Quit MenubarWindows**. There is no Dock icon and
+Right-click any tab for **Hide for 10 / 30 / 60 seconds**, which lets you reach the menu titles under
+the strip, and for **Quit MenubarWindows**. There is no Dock icon and
 no status item.
 
 Check geometry without starting the UI:
@@ -58,8 +59,8 @@ trust.
 
 - One non-activating `NSPanel` per screen, at status-bar level, with the height of that screen's menu bar.
 - The strip is anchored to the middle of the bar, `StripLayout.stripWidth` (560pt) wide. On notched
-  screens it ends 12pt left of the notch instead. The frontmost app's `AXMenuBar` item positions only
-  push its left edge in, when an app has so many menus that they reach the strip.
+  screens it ends 12pt left of the notch instead. It never starts closer than 130pt to the left edge, and
+  it is pulled back so it does not cover the status icons. The frontmost app's menus are ignored.
 - Windows come from `CGWindowListCopyWindowInfo`, filtered to layer 0, alpha > 0, and size > 80x40. Each
   window is then matched to an AX window, which supplies its title and focus.
 - Refresh: strip geometry every 1s and on app activation, window list every 0.5s, permission every 2s.

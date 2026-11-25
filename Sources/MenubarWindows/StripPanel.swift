@@ -96,6 +96,17 @@ final class StripContentView: NSView {
 
     override func rightMouseDown(with event: NSEvent) {
         let menu = NSMenu()
+        for seconds in [10, 30, 60] {
+            let item = NSMenuItem(
+                title: "Hide for \(seconds) seconds",
+                action: #selector(hideRequested(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.tag = seconds
+            menu.addItem(item)
+        }
+        menu.addItem(.separator())
         let quit = NSMenuItem(
             title: "Quit MenubarWindows",
             action: #selector(NSApplication.terminate(_:)),
@@ -104,6 +115,13 @@ final class StripContentView: NSView {
         quit.target = NSApp
         menu.addItem(quit)
         NSMenu.popUpContextMenu(menu, with: event, for: self)
+    }
+
+    /// Set by the app delegate. Hides every strip for the given number of seconds.
+    var onHide: ((TimeInterval) -> Void)?
+
+    @objc private func hideRequested(_ sender: NSMenuItem) {
+        onHide?(TimeInterval(sender.tag))
     }
 
     override func scrollWheel(with event: NSEvent) {

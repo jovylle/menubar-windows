@@ -22,6 +22,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var strips: [ScreenStrip] = []
     private var trusted = false
     private var timers: [Timer] = []
+    /// While set to a future date, every strip stays hidden so the menu titles underneath can be used.
+    private var hiddenUntil: Date?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
@@ -72,6 +74,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func rebuildPanels() {
         strips.forEach { $0.panel.orderOut(nil) }
         strips = NSScreen.screens.map { ScreenStrip(screen: $0, panel: StripPanel()) }
+        for strip in strips {
+            strip.panel.content.onHide = { [weak self] seconds in
+                self?.hiddenUntil = Date().addingTimeInterval(seconds)
+                self?.refreshGeometry()
+            }
+        }
         refreshAll()
     }
 
@@ -81,6 +89,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func refreshGeometry() {
+        if let until = hiddenUntil {
+            if Date() < until {
+                strips.forEach { $0.panel.orderOut(nil) }
+                return
+            }
+            hiddenUntil = nil
+        }
         for strip in strips {
             let free: FreeStrip? = MenuBarGeometry.freeStrip(on: strip.screen)
             guard let free else {

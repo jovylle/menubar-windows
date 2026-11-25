@@ -22,7 +22,7 @@ enum ListCommand {
             print("Screen \(index): frame \(describe(screen.frame)), "
                 + "reserved menu bar \(String(format: "%.0f", MenuBarGeometry.reservedMenuBarHeight(screen)))pt")
             if let strip = MenuBarGeometry.freeStrip(on: screen) {
-                print("  free strip: \(describe(strip.frame)), left edge from \(strip.leftSource)")
+                print("  free strip: \(describe(strip.frame)), \(strip.leftSource)")
             } else {
                 print("  free strip: hidden (menu bar not reserved, full screen, or no room)")
             }

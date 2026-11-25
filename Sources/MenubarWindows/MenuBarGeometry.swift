@@ -21,12 +21,10 @@ enum StripLayout {
     static let stripWidth: CGFloat = 560
     /// Gap between the notch and the strip's right edge.
     static let notchGap: CGFloat = 12
+    /// The strip never starts closer than this to the left screen edge (keeps the Apple menu usable).
+    static let minimumLeftInset: CGFloat = 130
     /// Gap between the strip and the leftmost status icon.
     static let statusGap: CGFloat = 12
-    /// Gap between the last frontmost-app menu title and the strip.
-    static let leftPadding: CGFloat = 12
-    /// Left edge used when Accessibility cannot report the menu titles.
-    static let fallbackLeftOffset: CGFloat = 420
     /// Below this width the strip is hidden.
     static let minimumStripWidth: CGFloat = 120
     static let pillHeight: CGFloat = 22
@@ -153,18 +151,8 @@ enum MenuBarGeometry {
         let axMaxX = frontmostMenuTitlesMaxX(on: screen)
         guard reservedMenuBarHeight(screen) > 0 || axMaxX != nil else { return nil }
 
-        let left: CGFloat
-        let source: String
-        if let maxX = axMaxX {
-            left = maxX + StripLayout.leftPadding
-            source = "AX"
-        } else {
-            left = screen.frame.minX + StripLayout.fallbackLeftOffset
-            source = "fallback"
-        }
-
-        // The strip is anchored to the middle of the bar, so it stays put when the frontmost app has
-        // more or fewer menus. Only an app whose menus reach into the strip pushes its left edge in.
+        // The strip is anchored to the middle of the bar, so it stays put whatever menus the
+        // frontmost app has.
         // On a notched screen the middle is the notch, so the strip ends at the notch's left edge.
         let width = StripLayout.stripWidth
         var hi: CGFloat
@@ -177,15 +165,18 @@ enum MenuBarGeometry {
             hi = lo + width
         }
         // Never overlap the right-hand status icons: when they reach into the strip, pull the right
-        // edge back, and slide left to keep the width if the menus allow it.
+        // edge back and slide left to keep the width.
         if let statusMinX = statusItemsMinX(on: screen) {
             hi = min(hi, statusMinX - StripLayout.statusGap)
         }
-        lo = max(left, min(lo, hi - width))
+        // The frontmost app's menu titles are ignored on purpose: the strip may sit on top of them.
+        // Right-click a tab and choose "Hide for ..." to reach the menus underneath. Only the Apple
+        // menu and the app name are kept clear.
+        lo = max(screen.frame.minX + StripLayout.minimumLeftInset, min(lo, hi - width))
         guard hi - lo >= StripLayout.minimumStripWidth else { return nil }
 
         let height = menuBarHeight(screen)
         let frame = NSRect(x: lo, y: screen.frame.maxY - height, width: hi - lo, height: height)
-        return FreeStrip(frame: frame, leftSource: source)
+        return FreeStrip(frame: frame, leftSource: "menus ignored")
     }
 }
