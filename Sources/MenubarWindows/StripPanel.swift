@@ -177,7 +177,7 @@ final class StripContentView: NSView {
                 x: x,
                 y: 0,
                 width: pillWidth,
-                height: height
+                height: height - StripLayout.topOverscan
             )
             x += pillWidth + gap
         }

@@ -21,6 +21,9 @@ enum StripLayout {
     static let stripWidth: CGFloat = 560
     /// Gap between the notch and the strip's right edge.
     static let notchGap: CGFloat = 12
+    /// The panel extends this far above the top edge of the screen (a negative top margin), so a click
+    /// with the pointer pushed against the very top still lands on a tab.
+    static let topOverscan: CGFloat = 6
     /// The strip never starts closer than this to the left screen edge (keeps the Apple menu usable).
     static let minimumLeftInset: CGFloat = 130
     /// Gap between the strip and the leftmost status icon.
@@ -176,7 +179,12 @@ enum MenuBarGeometry {
         guard hi - lo >= StripLayout.minimumStripWidth else { return nil }
 
         let height = menuBarHeight(screen)
-        let frame = NSRect(x: lo, y: screen.frame.maxY - height, width: hi - lo, height: height)
+        let frame = NSRect(
+            x: lo,
+            y: screen.frame.maxY - height,
+            width: hi - lo,
+            height: height + StripLayout.topOverscan
+        )
         return FreeStrip(frame: frame, leftSource: "menus ignored")
     }
 }
