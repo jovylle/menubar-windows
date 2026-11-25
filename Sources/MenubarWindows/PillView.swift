@@ -17,6 +17,7 @@
 //   (PillAppearance.inWindow) instead of behind it.
 
 import AppKit
+import MenubarWindowsCore
 
 struct PillAppearance: Equatable {
     var style: TabStyle
@@ -139,7 +140,6 @@ final class PillView: NSView {
 
         // Brightens the active pill. Lives inside the effect view so it is clipped to the tab.
         highlight.wantsLayer = true
-        highlight.wantsLayer = true
         highlight.autoresizingMask = [.width, .height]
         background.addSubview(highlight)
 
@@ -166,11 +166,9 @@ final class PillView: NSView {
         addSubview(divider)
         applyColors()
 
-        // Minimized windows are dimmed. The tooltip and VoiceOver also say so, so it is not
-        // conveyed by brightness alone.
-        let dim: CGFloat = model.isMinimized ? 0.55 : 1
-        iconView.alphaValue = dim
-        label.alphaValue = dim
+        // Minimized windows get a dimmed icon. The label keeps full contrast (see TabPalette), and the
+        // tooltip and VoiceOver say "minimized", so it is not conveyed by brightness alone.
+        iconView.alphaValue = model.isMinimized ? CGFloat(TabPalette.minimizedIconAlpha) : 1
 
         let description = model.isMinimized ? "\(model.accessibilityText) (minimized)" : model.accessibilityText
         toolTip = description
@@ -182,42 +180,21 @@ final class PillView: NSView {
         }
     }
 
-    /// Background of an inactive tab for a theme and appearance.
-    static func baseFill(theme: ColorTheme, light: Bool) -> NSColor {
-        if theme == .black { return .black }
-        return light ? NSColor(white: 0.9, alpha: 0.62) : NSColor(white: 0, alpha: 0.55)
-    }
-
     private var isLightAppearance: Bool {
         effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .aqua
     }
 
-    private var hasActiveFill: Bool {
-        model.isActive && appearanceStyle.indicator.showsFill && appearanceStyle.theme == .system
-    }
-
-    /// Contrast. Dark mode: inactive tabs are a dark tint under white text, a filled active tab is near
-    /// white under dark text. Light mode: every tab has a light background under dark text, and the
-    /// active one is pure white, a bit lighter than the rest. All pairs are well above 4.5:1.
+    /// Colors come from TabPalette (MenubarWindowsCore), whose tests keep every label at 4.5:1 or more
+    /// over its tab in light, dark and Pure black, including over the worst backdrop.
     private func applyColors() {
-        let fill: NSColor
-        let text: NSColor
-        if appearanceStyle.theme == .black {
-            // Pure black in light and dark mode. The active tab is told apart by
-            // full-white text against slightly dimmer text, since its background stays black.
-            fill = .black
-            text = NSColor(white: 1, alpha: model.isActive ? 1 : 0.82)
-        } else if isLightAppearance {
-            fill = hasActiveFill ? NSColor(white: 1, alpha: 1) : NSColor(white: 0.9, alpha: 0.62)
-            text = NSColor(white: 0.07, alpha: 1)
-        } else if hasActiveFill {
-            fill = NSColor(white: 0.96, alpha: 0.96)
-            text = NSColor(white: 0.07, alpha: 1)
-        } else {
-            fill = NSColor(white: 0, alpha: 0.55)
-            text = .white
-        }
-        highlight.layer?.backgroundColor = fill.cgColor
+        let colors = TabPalette.colors(
+            pureBlack: appearanceStyle.theme == .black,
+            light: isLightAppearance,
+            active: model.isActive,
+            activeFill: appearanceStyle.indicator.showsFill
+        )
+        let text = NSColor(white: colors.text.white, alpha: colors.text.alpha)
+        highlight.layer?.backgroundColor = NSColor(white: colors.fill.white, alpha: colors.fill.alpha).cgColor
         label.textColor = text
         divider.layer?.backgroundColor = text.withAlphaComponent(0.22).cgColor
     }

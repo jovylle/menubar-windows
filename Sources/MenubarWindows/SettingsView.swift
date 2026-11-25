@@ -94,13 +94,15 @@ private struct AppearancePane: View {
                     ForEach(TabStyle.allCases) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.radioGroup)
-                Help("Square tabs fill the full bar height and touch the top edge of the screen.")
+                Help("Square tabs touch the top edge of the screen and flare out into it, like an upside-down "
+                    + "browser tab. Rounded tabs are inset, with four rounded corners.")
 
                 Picker("Active tab", selection: $settings.indicator) {
                     ForEach(ActiveIndicator.allCases) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                Help("How the focused window's tab stands out. Underline uses the accent color.")
+                Help("How the focused window's tab stands out. Underline uses the accent color. Pure black "
+                    + "has no brighter fill; its active tab has full-white text instead.")
 
                 Toggle("Use the system accent color", isOn: $settings.useSystemAccent)
                 ColorPicker("Custom accent color", selection: accentBinding, supportsOpacity: false)
@@ -113,8 +115,8 @@ private struct AppearancePane: View {
                     ForEach(StripPlacement.allCases) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.radioGroup)
-                Help("Top left puts the tabs where the app's menu titles start, after the Apple menu.")
-
+                Help("Top left puts the tabs right after the Apple menu, on top of the app's menu titles. "
+                    + "Right-click a tab and choose Hide for to reach those menus.")
 
                 HStack {
                     Slider(value: $settings.tabHeightPercent, in: Settings.tabHeightRange, step: 5) {
@@ -146,7 +148,10 @@ private struct AppearancePane: View {
                     ForEach(StripAlignment.allCases) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                Help("Center keeps the tabs in the middle of the bar, or next to the notch on screens that have one.")
+                .disabled(settings.placement == .left)
+                Help(settings.placement == .left
+                    ? "Top left placement always starts the tabs after the Apple menu."
+                    : "Center keeps the tabs in the middle of the bar, or next to the notch on screens that have one.")
             }
         }
         .formStyle(.grouped)
@@ -280,7 +285,8 @@ private struct BehaviourPane: View {
 
             Section("Which windows get a tab") {
                 Toggle("Include minimized windows", isOn: $settings.includeMinimized)
-                Help("Minimized windows show as dimmed tabs; clicking one restores it. Off: they never appear.")
+                Help("Minimized windows show as tabs with a dimmed icon; clicking one restores it. "
+                    + "Off: they never appear.")
 
                 Toggle("Ignore small helper windows", isOn: $settings.ignoreSmallWindows)
                 HStack {

@@ -44,6 +44,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.mainMenu = MainMenu.make()
+        // Testing aid: `-mw.debugAppearance dark` (or light) forces an appearance for one run, so tab
+        // colors and Settings can be checked without changing the system appearance.
+        switch UserDefaults.standard.string(forKey: "mw.debugAppearance") {
+        case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
+        case "light": NSApp.appearance = NSAppearance(named: .aqua)
+        default: break
+        }
         trusted = AXIsProcessTrusted()
 
         NotificationCenter.default.addObserver(
@@ -216,7 +223,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
                 self?.noteFocus(window.windowID)
                 WindowRaiser.raise(window)
             },
-            middleClick: { WindowRaiser.close(window) }
+            middleClick: { [weak self] in self?.close(window) }
         )
     }
 

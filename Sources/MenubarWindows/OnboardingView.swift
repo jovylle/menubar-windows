@@ -187,12 +187,10 @@ struct MenuBarIllustration: View {
     private func tab(_ title: String, active: Bool) -> some View {
         Text(title)
             .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(.white)
+            // Matches the default look: a brighter fill with dark text marks the active tab.
+            .foregroundStyle(active ? Color(white: 0.07) : .white)
             .padding(.horizontal, 10)
             .frame(height: 26)
-            .background(Color.black.opacity(active ? 0.55 : 0.75))
-            .overlay(alignment: .bottom) {
-                if active { Rectangle().fill(Color.accentColor).frame(height: 2) }
-            }
+            .background(active ? Color(white: 0.96) : Color.black.opacity(0.75))
     }
 }

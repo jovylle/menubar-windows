@@ -10,7 +10,9 @@
 //   It maps an AX window to its CGWindowID without Screen Recording permission. If it fails,
 //   WindowProvider falls back to matching by bounds.
 // - AX calls are synchronous IPC on the main thread. A hung app can stall us, so every app element
-//   gets a short messaging timeout.
+//   gets a short messaging timeout. The timeout belongs to one AXUIElementRef and is NOT inherited by
+//   the window and menu elements read from it (those would use the 6s system default), so element()
+//   and elements() set it on every element they return.
 
 import AppKit
 import ApplicationServices
@@ -24,11 +26,14 @@ enum AX {
     }
 
     static func copy(_ element: AXUIElement, _ attribute: String) -> CFTypeRef? {
+        copyResult(element, attribute).value
+    }
+
+    /// The value and the AX error, for callers that must tell a timeout (.cannotComplete) from no value.
+    static func copyResult(_ element: AXUIElement, _ attribute: String) -> (value: CFTypeRef?, error: AXError) {
         var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else {
-            return nil
-        }
-        return value
+        let error = AXUIElementCopyAttributeValue(element, attribute as CFString, &value)
+        return (error == .success ? value : nil, error)
     }
 
     static func string(_ element: AXUIElement, _ attribute: String) -> String? {
@@ -36,14 +41,18 @@ enum AX {
     }
 
     static func elements(_ element: AXUIElement, _ attribute: String) -> [AXUIElement] {
-        (copy(element, attribute) as? [AXUIElement]) ?? []
+        let list = (copy(element, attribute) as? [AXUIElement]) ?? []
+        list.forEach(setTimeout)
+        return list
     }
 
     static func element(_ element: AXUIElement, _ attribute: String) -> AXUIElement? {
         guard let value = copy(element, attribute), CFGetTypeID(value) == AXUIElementGetTypeID() else {
             return nil
         }
-        return (value as! AXUIElement)
+        let child = value as! AXUIElement
+        setTimeout(child)
+        return child
     }
 
     static func point(_ element: AXUIElement, _ attribute: String) -> CGPoint? {

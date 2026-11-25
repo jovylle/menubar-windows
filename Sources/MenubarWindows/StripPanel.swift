@@ -68,9 +68,10 @@ struct StripOptions: Equatable {
     var topOverscan: CGFloat = StripLayout.topOverscan
 
     static var current: StripOptions {
+        // Top left placement always starts the tabs at the strip's left edge, also in Fixed width.
         StripOptions(
             shrinkWhenCrowded: Settings.shared.shrinkWhenCrowded,
-            alignment: Settings.shared.alignment
+            alignment: Settings.shared.placement == .left ? .left : Settings.shared.alignment
         )
     }
 }

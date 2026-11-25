@@ -116,8 +116,11 @@ enum MenuBarGeometry {
         }
         let app = AXUIElementCreateApplication(pid)
         AX.setTimeout(app)
-        guard let window = AX.element(app, "AXFocusedWindow") else { return false }
-        return (AX.copy(window, "AXFullScreen") as? Bool) ?? false
+        // A helper window (a Find bar, a popover) can hold focus over a full-screen window, so the
+        // app's main window counts too.
+        return ["AXFocusedWindow", "AXMainWindow"].contains { attribute in
+            AX.element(app, attribute).flatMap { AX.copy($0, "AXFullScreen") as? Bool } ?? false
+        }
     }
 
     /// Largest right edge (Cocoa x) of the frontmost app's menu titles that sit on this screen's menu bar.

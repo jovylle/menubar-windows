@@ -17,11 +17,15 @@ from there (`scripts/app-info.sh`), and the version comes from [`VERSION`](VERSI
 - Handles the notch: on notched screens the strip ends just left of it.
 - Clicks land at the very top pixel row: the panel extends 6pt above the screen edge.
 - Stays clear of status icons, and leaves the Apple menu and the app name usable.
-- Five tab orders, pinning, four label modes, two tab styles, accent color, width and alignment.
+- Five tab orders, pinning, four label modes, two tab styles, two color themes (match the system or
+  Pure black), tab height, accent color, placement, width and alignment.
+- The focused window's tab is marked active, also while a helper window such as a Find bar has focus.
+  Every tab label has at least 4.5:1 contrast in light, dark and Pure black (checked by unit tests).
 - Per-display on/off, hide on demand, hide in full screen, hide when only one window is open.
 - Right-click a tab: hide for a few seconds, pin or unpin its app, close or minimize the window,
   Settings, Quit. Middle-click a tab to close its window.
-- Light on resources: two timers (0.5s and 2s) and no background work beyond that.
+- Light on resources: one 0.5s refresh timer and a 2s permission check, no background services. Measured
+  on the development Mac with four windows: 0.7% CPU on average while idle (20-second `top` sample).
 - No network access, no analytics. Nothing leaves your Mac.
 
 ## Settings
@@ -34,7 +38,7 @@ Finder or Spotlight (there is no Dock icon and no menu bar icon by design). Ever
 | Appearance | Tab style: **Square, flush with the top** or Rounded. Color theme: **Match the system** or Pure black. Tab height: 50 to 100% of the menu bar (**85%**). Active tab: Underline, **Brighter fill**, Both. Accent: **system** or a custom color. Width: **Automatic (fit the tabs, up to a maximum)** or Fixed, 240 to 900pt (**560**). Alignment: **Center** or Left. Placement: **Middle of the menu bar** or Top left, right after the Apple menu. Live preview. |
 | Tabs and order | Order (see below, **Automatic**). Pinned apps list. Labels: App name, Window title, **App name and title**, Icon only. **Shrink to icon-only when crowded**. Show up to 3 to 12 tabs (**8**); the rest go in a **+N** tab that opens a menu. Live preview. |
 | Displays | **Show on all displays**, or a toggle per connected display (stored by display UUID). |
-| Behaviour | Hide when only one window is open (off). **Hide in full-screen apps**. Include minimized windows (off). **Ignore small helper windows** smaller than **100pt** (also drops windows the app marks with a non-standard AX subrole, such as Edge's Find bar). Hide-for durations (**10, 30, 60** seconds). |
+| Behaviour | Hide when only one window is open (off). **Hide in full-screen apps**. Include minimized windows (off; they show with a dimmed icon). **Ignore small helper windows** smaller than **100pt** (also drops windows the app marks with a non-standard AX subrole, such as Edge's Find bar). Hide-for durations (**10, 30, 60** seconds). |
 | General | Launch at login (SMAppService; only from the .app bundle). **Show Settings when the app is opened again**. Accessibility status and setup guide. |
 | About | Version, tagline, privacy note, Reset to defaults. |
 
@@ -69,13 +73,15 @@ bundled Swift Testing framework by itself; the script passes its paths. With Xco
 Headless check (no UI), for the bare binary or the bundle:
 
 ```sh
+.build/release/MenubarWindows --version
 .build/release/MenubarWindows --list
 build/MenubarWindows.app/Contents/MacOS/MenubarWindows --list
 ```
 
 It prints the active tab order and filters, and per screen the strip region and the windows in tab
 order. Any setting can be overridden for one run with a launch argument, for example
-`-mw.order recentFirst` or `-mw.hasCompletedOnboarding YES`.
+`-mw.order recentFirst` or `-mw.hasCompletedOnboarding YES`. For testing colors without changing the system
+appearance, `-mw.debugAppearance dark` (or `light`) forces an appearance for one run.
 
 The bare binary and the bundle keep separate settings: the defaults domain is the executable name for
 `swift run` and the bundle identifier for the app.
@@ -153,9 +159,12 @@ Resources/                       AppIcon.icns, AppIcon-1024.png (generated, comm
 Sources/MenubarWindowsCore/
   TabOrdering.swift              order modes, ordering function, first-seen and MRU tracker
   TabLabel.swift                 label modes and label text
+  FocusMatch.swift               which tab is active (focused, else main window, timeout rule)
+  TabPalette.swift               tab colors per theme and state, WCAG contrast
+  WindowFilterRule.swift         helper-window filter by size and AX subrole
 Sources/MenubarWindows/
   AppInfo.swift                  display name, bundle id, tagline (single source)
-  main.swift                     entry point, --list
+  main.swift                     entry point, --version, --list
   AppDelegate.swift              panels per screen, refresh loop, permission poll, tab actions
   Settings.swift                 typed UserDefaults settings, live change publisher, display ids
   SettingsView.swift             SwiftUI Settings window
@@ -169,7 +178,7 @@ Sources/MenubarWindows/
   WindowRaiser.swift             raise, close and minimize through AX
   AccessibilityHelpers.swift     AX wrappers and _AXUIElementGetWindow
   ListCommand.swift              --list output
-Tests/MenubarWindowsCoreTests/   ordering and label tests
+Tests/MenubarWindowsCoreTests/   ordering, label, active tab, contrast and filter tests
 scripts/                         app-info.sh, build-app.sh, make-dmg.sh, make-icon.sh(+.swift), test.sh
 site/                            private-beta landing page (static, offline)
 ```

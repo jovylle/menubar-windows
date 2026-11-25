@@ -61,7 +61,7 @@ final class PreviewBarView: NSView {
     }
 
     override func updateLayer() {
-        // A neutral bar that reads in light and dark mode; the tabs bring their own dark material.
+        // A neutral bar that reads in light and dark mode; the tabs bring their own material and fill.
         layer?.backgroundColor = NSColor.windowBackgroundColor.blended(withFraction: 0.35, of: .gray)?.cgColor
     }
 
@@ -102,10 +102,13 @@ final class PreviewBarView: NSView {
         let width = Settings.shared.widthMode == .automatic
             ? strip.preferredWidth(maximum: available)
             : min(available, CGFloat(Settings.shared.stripWidth) * available / 900)
+        // Same rules as MenuBarGeometry.freeStrip: Top left placement starts right after the Apple
+        // menu and ignores alignment.
         let x: CGFloat
-        switch Settings.shared.alignment {
-        case .center: x = (bounds.width - width) / 2
-        case .left: x = 60
+        switch (Settings.shared.placement, Settings.shared.alignment) {
+        case (.left, _): x = apple.frame.maxX + 10
+        case (.middle, .center): x = (bounds.width - width) / 2
+        case (.middle, .left): x = 60
         }
         let tabHeight = (Self.barHeight * CGFloat(Settings.shared.tabHeightPercent) / 100).rounded()
         strip.frame = NSRect(

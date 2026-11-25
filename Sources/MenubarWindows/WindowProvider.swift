@@ -6,10 +6,11 @@
 //   permission, so titles and focus come from AX instead. Only Accessibility is required.
 // - A CG window is kept only if AX also reports it (matched by CGWindowID, then by bounds). That
 //   drops tooltips, helper panels and other layer-0 windows that AX does not list.
-// - Helper windows: some apps (Edge's Find bar, popovers) expose real AX windows. With "Ignore small
-//   helper windows" on, a window is dropped when the app reports an AX subrole other than
-//   AXStandardWindow or AXDialog, or when either side is smaller than the configured size. With it off,
-//   only the original size floor (wider than 80, taller than 40) applies.
+// - Helper windows: some apps (Edge's Find bar, popovers) expose real AX windows. The size and subrole
+//   rules live in WindowFilterRule (MenubarWindowsCore), with unit tests.
+// - Focus: the active tab is the frontmost app's AXFocusedWindow, or its AXMainWindow when the focused
+//   window has no tab (a Find bar or popover has focus), matched by CGWindowID or by AX element. A
+//   lookup that times out keeps the previous active tab of that app. See FocusMatch.
 // - Minimized windows are not in the on-screen CG list. When "Include minimized windows" is on, they are
 //   read from AX per regular app (AXMinimized), which costs one AX round trip per app per refresh.
 // - Ordering is NOT done here. TabOrdering (MenubarWindowsCore) orders the result per the user's mode.
@@ -38,6 +39,14 @@ struct WindowInfo {
         )
     }
 
+    /// A copy marked as the focused window.
+    func focused() -> WindowInfo {
+        WindowInfo(
+            windowID: windowID, pid: pid, appKey: appKey, appName: appName, title: title,
+            frame: frame, isFocused: true, isMinimized: isMinimized
+        )
+    }
+
     func label(_ mode: TabLabelMode) -> String {
         TabLabel.text(appName: appName, title: title, mode: mode)
     }
@@ -59,11 +68,10 @@ struct WindowFilter {
 }
 
 enum WindowProvider {
-    /// Windows at or below this size are always ignored (the original rule: keep only size > 80x40).
-    static let minimumWidth: CGFloat = 80
-    static let minimumHeight: CGFloat = 40
-    /// Subroles that count as real windows when the app reports one.
-    static let windowSubroles: Set<String> = ["AXStandardWindow", "AXDialog"]
+    static let minimumWidth = WindowFilterRule.minimumWidth
+    static let minimumHeight = WindowFilterRule.minimumHeight
+    /// The tab that was active on the last refresh, with its app, for FocusMatch's timeout rule.
+    nonisolated(unsafe) private static var lastActive: (pid: pid_t, windowID: CGWindowID)?
 
     struct AXWindow {
         let element: AXUIElement
@@ -94,10 +102,12 @@ enum WindowProvider {
     }
 
     static func passesFilter(size: CGSize, subrole: String?, filter: WindowFilter) -> Bool {
-        guard size.width > minimumWidth, size.height > minimumHeight else { return false }
-        guard filter.ignoreSmallWindows else { return true }
-        if let subrole, !subrole.isEmpty, !windowSubroles.contains(subrole) { return false }
-        return size.width >= filter.smallWindowSize && size.height >= filter.smallWindowSize
+        WindowFilterRule.passes(
+            size: size,
+            subrole: subrole,
+            ignoreSmallWindows: filter.ignoreSmallWindows,
+            smallWindowSize: filter.smallWindowSize
+        )
     }
 
     static func appKey(pid: pid_t, fallbackName: String) -> String {
@@ -114,10 +124,11 @@ enum WindowProvider {
 
         let ownPID = ProcessInfo.processInfo.processIdentifier
         let frontmostPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
-        let focusedID = frontmostPID.flatMap { focusedWindowID(pid: $0) }
         var axCache: [pid_t: [AXWindow]] = [:]
         var result: [WindowInfo] = []
         var seen = Set<CGWindowID>()
+        /// The frontmost app's tabs and their AX elements, for focus matching.
+        var frontmostTabs: [(windowID: CGWindowID, element: AXUIElement)] = []
 
         for entry in raw {
             guard (entry[kCGWindowLayer as String] as? Int) == 0,
@@ -147,6 +158,7 @@ enum WindowProvider {
                 ?? (entry[kCGWindowOwnerName as String] as? String)
                 ?? "App"
             seen.insert(windowID)
+            if pid == frontmostPID { frontmostTabs.append((windowID, ax.element)) }
             result.append(WindowInfo(
                 windowID: windowID,
                 pid: pid,
@@ -154,9 +166,14 @@ enum WindowProvider {
                 appName: appName,
                 title: ax.title,
                 frame: frame,
-                isFocused: windowID == focusedID,
+                isFocused: false,
                 isMinimized: false
             ))
+        }
+
+        if let frontmostPID, let activeID = activeWindowID(pid: frontmostPID, tabs: frontmostTabs),
+           let index = result.firstIndex(where: { $0.windowID == activeID }) {
+            result[index] = result[index].focused()
         }
 
         if filter.includeMinimized {
@@ -231,6 +248,33 @@ enum WindowProvider {
                 && abs(axFrame.width - frame.width) <= 2
                 && abs(axFrame.height - frame.height) <= 2
         })
+    }
+
+    /// The frontmost app's tab to mark active: its focused window, else its main window. See FocusMatch.
+    private static func activeWindowID(
+        pid: pid_t,
+        tabs: [(windowID: CGWindowID, element: AXUIElement)]
+    ) -> CGWindowID? {
+        let app = AXUIElementCreateApplication(pid)
+        AX.setTimeout(app)
+        var timedOut = false
+        func tabID(_ attribute: String) -> CGWindowID? {
+            let (value, error) = AX.copyResult(app, attribute)
+            if error == .cannotComplete { timedOut = true }
+            guard let value, CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
+            let element = value as! AXUIElement
+            let id = AX.windowID(element)
+            return tabs.first(where: { $0.windowID == id || CFEqual($0.element, element) })?.windowID
+        }
+        let focused = tabID("AXFocusedWindow")
+        let main = focused == nil ? tabID("AXMainWindow") : nil
+        let previous = lastActive.flatMap { $0.pid == pid ? $0.windowID : nil }
+        let active = FocusMatch.activeWindow(
+            focused: focused, main: main, lookupTimedOut: timedOut,
+            previous: previous, candidates: tabs.map(\.windowID)
+        )
+        lastActive = active.map { (pid, $0) }
+        return active
     }
 
     static func focusedWindowID(pid: pid_t) -> CGWindowID? {

@@ -4,7 +4,8 @@
 // Gotchas:
 // - This is an accessory app (no Dock icon), so a window only comes to the front if the app activates
 //   itself first. activate(ignoringOtherApps:) is deprecated on macOS 14+, so activate() is used there.
-// - Windows are created once and kept (isReleasedWhenClosed = false); show() just brings them back.
+// - A window is created on show() and dropped after it closes, so its SwiftUI views (and their
+//   PermissionMonitor timers) do not keep running behind a closed window. show() makes a new one.
 // - SMAppService.mainApp only works from an .app bundle. Run as a bare binary (swift run) it fails,
 //   so the toggle is disabled there and says why.
 
@@ -49,6 +50,14 @@ class HostedWindowController: NSObject, NSWindowDelegate {
 
     func close() {
         window?.close()
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        // Drop the window after AppKit has finished closing it.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.window?.isVisible != true else { return }
+            self.window = nil
+        }
     }
 }
 
