@@ -53,6 +53,17 @@ Finder or Spotlight (there is no Dock icon and no menu bar icon by design). Ever
 
 Ordering is a pure function in `Sources/MenubarWindowsCore/TabOrdering.swift` with unit tests.
 
+## Install
+
+Not published yet. When it is, the plan is:
+
+```
+brew install --cask jovylle/tap/menubarwindows
+```
+
+or download the dmg from the GitHub release and drag the app to Applications. The cask, the release
+script and the steps to publish a tap are in `packaging/homebrew/`. Building from source is below.
+
 ## Build and run
 
 Requirements: macOS 13 or later, Swift 6 toolchain (Command Line Tools are enough). No third-party
