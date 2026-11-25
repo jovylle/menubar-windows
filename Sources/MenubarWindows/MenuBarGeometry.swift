@@ -21,6 +21,8 @@ enum StripLayout {
     static let stripWidth: CGFloat = 560
     /// Gap between the notch and the strip's right edge.
     static let notchGap: CGFloat = 12
+    /// Gap between the strip and the leftmost status icon.
+    static let statusGap: CGFloat = 12
     /// Gap between the last frontmost-app menu title and the strip.
     static let leftPadding: CGFloat = 12
     /// Left edge used when Accessibility cannot report the menu titles.
@@ -115,6 +117,26 @@ enum MenuBarGeometry {
         return maxX
     }
 
+    /// Left edge (Cocoa x) of the leftmost status item on this screen's menu bar, or nil if none.
+    /// Status items are windows at the status-bar window level (25) inside the menu bar band.
+    static func statusItemsMinX(on screen: NSScreen) -> CGFloat? {
+        let infos = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
+        let ownPid = Int(ProcessInfo.processInfo.processIdentifier)
+        let topY = primaryMaxY() - screen.frame.maxY
+        let band = menuBarHeight(screen) + 4
+        var minX: CGFloat?
+        for info in infos {
+            guard (info[kCGWindowLayer as String] as? Int) == 25,
+                  (info[kCGWindowOwnerPID as String] as? Int) != ownPid,
+                  let dict = info[kCGWindowBounds as String] as? NSDictionary,
+                  let rect = CGRect(dictionaryRepresentation: dict) else { continue }
+            guard rect.minY >= topY - 1, rect.minY < topY + band,
+                  rect.midX >= screen.frame.midX - 40, rect.midX <= screen.frame.maxX else { continue }
+            minX = min(minX ?? rect.minX, rect.minX)
+        }
+        return minX
+    }
+
     /// The free strip for one screen, or nil when it should be hidden.
     static func freeStrip(on screen: NSScreen) -> FreeStrip? {
         guard !frontmostIsFullScreen() else { return nil }
@@ -148,7 +170,12 @@ enum MenuBarGeometry {
             lo = screen.frame.midX - width / 2
             hi = lo + width
         }
-        lo = max(lo, left)
+        // Never overlap the right-hand status icons: when they reach into the strip, pull the right
+        // edge back, and slide left to keep the width if the menus allow it.
+        if let statusMinX = statusItemsMinX(on: screen) {
+            hi = min(hi, statusMinX - StripLayout.statusGap)
+        }
+        lo = max(left, min(lo, hi - width))
         guard hi - lo >= StripLayout.minimumStripWidth else { return nil }
 
         let height = menuBarHeight(screen)

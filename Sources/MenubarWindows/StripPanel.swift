@@ -54,6 +54,10 @@ final class StripContentView: NSView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
+        // macOS lets mouse clicks fall through fully transparent window pixels. A nearly invisible
+        // fill keeps the whole strip, including the few points above and below the pills and the
+        // very top edge of the screen, clickable.
+        layer?.backgroundColor = NSColor(white: 0, alpha: 0.01).cgColor
         clip.wantsLayer = true
         clip.layer?.masksToBounds = true
         clip.autoresizingMask = [.width, .height]
@@ -73,6 +77,21 @@ final class StripContentView: NSView {
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
         true
+    }
+
+    /// A click anywhere in a pill's column counts as a click on that pill, from the very top edge of
+    /// the screen down to the bottom of the bar. The pill is drawn smaller, so without this the few
+    /// points above it would be dead space. The mouse stops at the screen edge, so this is what makes
+    /// "slam the cursor to the top and click" work.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let local = convert(point, from: superview)
+        guard bounds.contains(local) else { return nil }
+        let inTrack = track.convert(local, from: self)
+        let half = StripLayout.pillGap / 2
+        for pill in pills where inTrack.x >= pill.frame.minX - half && inTrack.x <= pill.frame.maxX + half {
+            return pill
+        }
+        return self
     }
 
     override func rightMouseDown(with event: NSEvent) {
