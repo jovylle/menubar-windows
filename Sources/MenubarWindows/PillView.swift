@@ -9,7 +9,7 @@
 // - Right-click is not handled here. It falls through the responder chain to the strip's menu, which
 //   finds the pill under the pointer itself.
 // - Middle-click (button 2) closes the window through onMiddleClick.
-// - Square style is flush with the top of the screen (no corner radius, full bar height). Rounded style
+// - Square style is flush with the top of the screen (full bar height) with slightly rounded bottom corners. Rounded style
 //   is inset a few points and keeps a corner radius; the column above it is still clickable because the
 //   strip's hitTest maps the whole column to the pill.
 // - In the Settings preview the panel is a normal window, so the effect view blends within the window
@@ -58,6 +58,7 @@ struct PillModel {
 
 final class PillView: NSView {
     private static let font = NSFont.systemFont(ofSize: StripLayout.pillFontSize, weight: .medium)
+    private static let activeFont = NSFont.systemFont(ofSize: StripLayout.pillFontSize, weight: .semibold)
     private static let horizontalPadding: CGFloat = 10
     private static let iconGap: CGFloat = 6
     private static let roundedInset: CGFloat = 3
@@ -124,7 +125,11 @@ final class PillView: NSView {
         // Brightens the active pill. Lives inside the effect view so it is clipped to the tab.
         let activeFill = model.isActive && appearanceStyle.indicator.showsFill
         highlight.wantsLayer = true
-        highlight.layer?.backgroundColor = NSColor.white.withAlphaComponent(activeFill ? 0.24 : 0.04).cgColor
+        // Contrast: inactive tabs are a dark tint under white text. A filled active tab is near white
+        // under dark text, which reads clearly on any menu bar color. Both pairs are above 7:1.
+        highlight.layer?.backgroundColor = (activeFill
+            ? NSColor(white: 0.96, alpha: 0.96)
+            : NSColor(white: 0, alpha: 0.55)).cgColor
         highlight.autoresizingMask = [.width, .height]
         background.addSubview(highlight)
 
@@ -142,7 +147,8 @@ final class PillView: NSView {
 
         label.stringValue = model.text
         label.font = Self.font
-        label.textColor = .white
+        label.textColor = activeFill ? NSColor(white: 0.07, alpha: 1) : .white
+        if model.isActive { label.font = Self.activeFont }
         label.lineBreakMode = .byTruncatingTail
         label.maximumNumberOfLines = 1
         addSubview(label)
@@ -168,7 +174,13 @@ final class PillView: NSView {
         let rounded = appearanceStyle.style == .rounded
         let inset = rounded ? Self.roundedInset : 0
         background.frame = bounds.insetBy(dx: rounded ? 1 : 0, dy: inset)
-        background.layer?.cornerRadius = rounded ? Self.roundedRadius : 0
+        // Square style: flush with the top of the screen, slightly rounded at the bottom corners only.
+        // Rounded style: all four corners. Layer corner masks use the layer's own coordinates, where
+        // MinY is the bottom edge on macOS.
+        background.layer?.cornerRadius = Self.roundedRadius
+        background.layer?.maskedCorners = rounded
+            ? [.layerMinXMinYCorner, .layerMaxXMinYCorner, .layerMinXMaxYCorner, .layerMaxXMaxYCorner]
+            : [.layerMinXMinYCorner, .layerMaxXMinYCorner]
         highlight.frame = background.bounds
         underline.frame = NSRect(x: 0, y: 0, width: background.bounds.width, height: 2)
 
