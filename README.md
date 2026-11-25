@@ -57,9 +57,9 @@ trust.
 ## How it works
 
 - One non-activating `NSPanel` per screen, at status-bar level, with the height of that screen's menu bar.
-- The strip's left edge comes from the frontmost app's `AXMenuBar` item positions, plus 12pt. The right
-  edge is `screen.midX + 380`, clamped. Both are constants in `MenuBarGeometry.swift`
-  (`StripLayout`). On notched screens the strip stays inside the area left of the notch.
+- The strip is anchored to the middle of the bar, `StripLayout.stripWidth` (560pt) wide. On notched
+  screens it ends 12pt left of the notch instead. The frontmost app's `AXMenuBar` item positions only
+  push its left edge in, when an app has so many menus that they reach the strip.
 - Windows come from `CGWindowListCopyWindowInfo`, filtered to layer 0, alpha > 0, and size > 80x40. Each
   window is then matched to an AX window, which supplies its title and focus.
 - Refresh: strip geometry every 1s and on app activation, window list every 0.5s, permission every 2s.

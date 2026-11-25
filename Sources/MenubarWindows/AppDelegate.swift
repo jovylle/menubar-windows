@@ -41,7 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
 
         timers = [
-            Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
                 self?.refreshGeometry()
             },
             Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
@@ -61,6 +61,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func appActivated(_ notification: Notification) {
         refreshAll()
+        // The new app's menu titles reach Accessibility a moment after activation, so measure again.
+        for delay in [0.15, 0.4] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                self?.refreshGeometry()
+            }
+        }
     }
 
     private func rebuildPanels() {

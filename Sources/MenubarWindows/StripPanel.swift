@@ -133,7 +133,8 @@ final class StripContentView: NSView {
         scrollOffset = min(max(0, scrollOffset), max(0, contentWidth - width))
         track.frame = NSRect(x: -scrollOffset, y: 0, width: max(width, contentWidth), height: height)
 
-        var x: CGFloat = 0
+        // Center the pills when they do not fill the strip.
+        var x: CGFloat = max(0, (width - contentWidth) / 2)
         for (pill, pillWidth) in zip(pills, widths) {
             pill.frame = NSRect(
                 x: x,

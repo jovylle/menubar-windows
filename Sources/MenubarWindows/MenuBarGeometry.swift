@@ -10,15 +10,17 @@
 //   (menu bar auto-hidden, or no menu bar there) gets no strip.
 // - AX menu items that do not lie on this screen's menu bar are ignored. If no items match, a fixed
 //   offset from the left edge is used instead.
-// - The right edge is a fixed offset from the screen center (StripLayout.rightEdgeOffsetFromCenter),
-//   not a share of the width. On wide displays it leaves more room for status icons than on narrow ones.
+// - The strip is anchored to the middle of the bar (StripLayout.stripWidth wide), or ends at the notch
+//   on notched screens. The frontmost app's menus only push its left edge in when they reach it.
 
 import AppKit
 import ApplicationServices
 
 enum StripLayout {
-    /// The strip's right edge is screen.midX + this value, clamped to the screen.
-    static let rightEdgeOffsetFromCenter: CGFloat = 380
+    /// Width of the strip, centered on the screen (or ending at the notch on notched screens).
+    static let stripWidth: CGFloat = 560
+    /// Gap between the notch and the strip's right edge.
+    static let notchGap: CGFloat = 12
     /// Gap between the last frontmost-app menu title and the strip.
     static let leftPadding: CGFloat = 12
     /// Left edge used when Accessibility cannot report the menu titles.
@@ -133,13 +135,20 @@ enum MenuBarGeometry {
             source = "fallback"
         }
 
-        var lo = left
-        var hi = min(screen.frame.midX + StripLayout.rightEdgeOffsetFromCenter, screen.frame.maxX)
+        // The strip is anchored to the middle of the bar, so it stays put when the frontmost app has
+        // more or fewer menus. Only an app whose menus reach into the strip pushes its left edge in.
+        // On a notched screen the middle is the notch, so the strip ends at the notch's left edge.
+        let width = StripLayout.stripWidth
+        var hi: CGFloat
+        var lo: CGFloat
         if let aux = screen.auxiliaryTopLeftArea {
-            // Notched display: stay inside the usable area left of the notch.
-            lo = max(lo, aux.minX)
-            hi = min(hi, aux.maxX)
+            hi = aux.maxX - StripLayout.notchGap
+            lo = hi - width
+        } else {
+            lo = screen.frame.midX - width / 2
+            hi = lo + width
         }
+        lo = max(lo, left)
         guard hi - lo >= StripLayout.minimumStripWidth else { return nil }
 
         let height = menuBarHeight(screen)
