@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MenubarWindows: your windows, as tabs in the menu bar</title>
+<meta name="description" content="A free macOS app that puts a tab for every window into the empty middle of the menu bar. Private beta.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="assets/icon.png">
+<style>
+  :root {
+    --paper: #f4f1ea;
+    --paper-2: #ebe6da;
+    --ink: #17191e;
+    --ink-2: #4a4e57;
+    --rule: #d3ccbc;
+    --accent: #c46a0b;          /* text-safe amber on paper */
+    --accent-fill: #f2a03d;     /* the icon's amber, for shapes */
+    --bar: #d9d4c8;
+    --bar-ink: #24262b;
+    --tab: rgba(20, 22, 27, 0.82);
+    --tab-active: rgba(20, 22, 27, 0.58);
+    --card: #fbfaf6;
+    --shadow: 0 1px 0 rgba(0,0,0,.04), 0 12px 32px -16px rgba(30, 25, 10, .28);
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #121317;
+      --paper-2: #191b21;
+      --ink: #ece8df;
+      --ink-2: #a9adb7;
+      --rule: #2c2f37;
+      --accent: #f5b25f;
+      --accent-fill: #f2a03d;
+      --bar: #2a2d35;
+      --bar-ink: #e7e4dc;
+      --tab: rgba(0, 0, 0, 0.55);
+      --tab-active: rgba(255, 255, 255, 0.16);
+      --card: #1a1c22;
+      --shadow: 0 1px 0 rgba(255,255,255,.03), 0 16px 40px -20px rgba(0,0,0,.8);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 17px/1.55 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:focus-visible, summary:focus-visible { outline: 3px solid var(--accent-fill); outline-offset: 3px; border-radius: 4px; }
+  .wrap { width: min(1120px, 100% - 48px); margin-inline: auto; }
+  .skip { position: absolute; left: -999px; }
+  .skip:focus { left: 16px; top: 16px; background: var(--ink); color: var(--paper); padding: 8px 12px; z-index: 10; }
+
+  /* Top strip: the page itself wears a menu bar. */
+  .site-bar {
+    position: sticky; top: 0; z-index: 5;
+    background: color-mix(in srgb, var(--paper) 86%, transparent);
+    backdrop-filter: saturate(1.4) blur(14px);
+    -webkit-backdrop-filter: saturate(1.4) blur(14px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .site-bar .wrap { display: flex; align-items: center; gap: 22px; height: 44px; font-size: 14px; }
+  .site-bar .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--ink); text-decoration: none; }
+  .site-bar .brand img { width: 22px; height: 22px; }
+  .site-bar nav { display: flex; gap: 18px; margin-left: auto; }
+  .site-bar nav a { color: var(--ink-2); text-decoration: none; }
+  .site-bar nav a:hover { color: var(--ink); }
+  .pill-status {
+    font: 600 12px/1 var(--mono); letter-spacing: .04em; text-transform: uppercase;
+    border: 1px solid var(--rule); border-radius: 999px; padding: 6px 10px; color: var(--ink-2);
+  }
+
+  /* Hero */
+  .hero { padding: 72px 0 40px; }
+  .kicker { font: 600 13px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 0 0 18px; }
+  h1 {
+    font-size: clamp(40px, 6.4vw, 84px); line-height: .98; letter-spacing: -0.035em;
+    margin: 0; max-width: 12ch; font-weight: 800;
+  }
+  h1 em { font-style: normal; color: var(--accent); }
+  .lede { font-size: clamp(18px, 2vw, 22px); color: var(--ink-2); max-width: 40ch; margin: 22px 0 0; }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-top: 30px; }
+  .button {
+    display: inline-flex; align-items: center; gap: 10px; text-decoration: none;
+    background: var(--ink); color: var(--paper); font-weight: 650; padding: 13px 20px; border-radius: 10px;
+  }
+  .button:hover { background: color-mix(in srgb, var(--ink) 85%, var(--accent-fill)); }
+  .note { font-size: 14px; color: var(--ink-2); }
+
+  /* The menu bar drawing */
+  .stage { margin-top: 56px; }
+  .screen {
+    position: relative; border-radius: 14px 14px 0 0; overflow: hidden;
+    background:
+      radial-gradient(120% 140% at 20% 0%, #8fb3c9 0%, #5d7fa3 38%, #34466a 70%, #20283d 100%);
+    border: 1px solid var(--rule); border-bottom: 0;
+    aspect-ratio: 16 / 5.2; min-height: 190px;
+  }
+  .menubar {
+    position: absolute; inset: 0 0 auto 0; height: 30px;
+    display: flex; align-items: stretch;
+    background: rgba(245, 243, 238, .62);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    color: #1d1f24; font-size: 13px;
+  }
+  .menubar .menus { display: flex; align-items: center; gap: 18px; padding-left: 16px; white-space: nowrap; }
+  .menubar .menus b { font-weight: 700; }
+  .apple {
+    width: 13px; height: 15px; background: #1d1f24; display: inline-block;
+    border-radius: 48% 48% 46% 46% / 58% 58% 42% 42%;
+    clip-path: polygon(0 18%, 40% 22%, 55% 0, 62% 4%, 56% 22%, 100% 18%, 100% 100%, 0 100%);
+  }
+  .tabs { display: flex; gap: 1px; margin: 0 auto; padding-left: 40px; }
+  .tab {
+    display: flex; align-items: center; gap: 7px; padding: 0 12px; min-width: 0;
+    background: var(--tab-sample, rgba(18, 20, 25, .78)); color: #fff; font-weight: 550; font-size: 12.5px;
+    white-space: nowrap; position: relative;
+  }
+  .tab .ico { width: 14px; height: 14px; border-radius: 4px; flex: none; }
+  .tab.active { background: rgba(18, 20, 25, .52); }
+  .tab.active::after { content: ""; position: absolute; inset: auto 0 0 0; height: 2px; background: var(--accent-fill); }
+  .status { display: flex; align-items: center; gap: 14px; padding-right: 16px; white-space: nowrap; }
+  .status i { width: 15px; height: 11px; display: inline-block; border: 1.6px solid #1d1f24; border-radius: 3px; opacity: .8; }
+  .status i.dot { width: 12px; height: 12px; border-radius: 50%; }
+  .cursor {
+    position: absolute; top: 2px; left: calc(50% + 28px); width: 0; height: 0;
+    border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 16px solid #fff;
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); transform: rotate(-24deg); transform-origin: top;
+  }
+  .window-sketch {
+    position: absolute; left: 12%; right: 30%; top: 72px; bottom: -40px;
+    background: rgba(250, 249, 245, .92); border-radius: 12px 12px 0 0;
+    box-shadow: 0 20px 60px -20px rgba(0,0,0,.6);
+  }
+  .window-sketch::before {
+    content: ""; position: absolute; left: 16px; top: 14px; width: 54px; height: 12px;
+    background: radial-gradient(circle at 6px 6px, #ef6a5e 5.5px, transparent 6px),
+                radial-gradient(circle at 26px 6px, #f5bf4f 5.5px, transparent 6px),
+                radial-gradient(circle at 46px 6px, #61c454 5.5px, transparent 6px);
+  }
+  .window-sketch.back { left: 40%; right: 8%; top: 104px; background: rgba(230, 232, 238, .8); }
+  .caption { display: flex; justify-content: space-between; gap: 16px; font: 13px/1.4 var(--mono); color: var(--ink-2); padding: 12px 2px 0; flex-wrap: wrap; }
+
+  /* Notch variant */
+  .variants { display: grid; grid-template-columns: 1.4fr 1fr; gap: 28px; margin-top: 36px; align-items: center; }
+  .notchbar {
+    position: relative; height: 38px; border-radius: 10px; overflow: hidden; display: flex; align-items: stretch;
+    background: linear-gradient(180deg, #3a3f4b, #2b2f38); color: #f1efe9; font-size: 12.5px;
+    border: 1px solid var(--rule);
+  }
+  .notchbar .menus { color: #f1efe9; }
+  .notchbar .apple { background: #f1efe9; }
+  .notch { width: 150px; background: #000; border-radius: 0 0 14px 14px; flex: none; margin-bottom: 6px; }
+  .notchbar .tabs { margin: 0 12px 0 auto; padding: 0; }
+  .notchbar .status { margin-left: auto; padding-left: 16px; }
+  .notchbar .status i { border-color: #f1efe9; }
+  .variants p { margin: 0; color: var(--ink-2); }
+
+  /* Sections */
+  section { padding: 88px 0 0; }
+  .section-head { display: grid; grid-template-columns: 140px 1fr; gap: 24px; border-top: 2px solid var(--ink); padding-top: 18px; margin-bottom: 36px; }
+  .section-head .num { font: 600 13px/1.6 var(--mono); letter-spacing: .08em; color: var(--accent); text-transform: uppercase; }
+  h2 { font-size: clamp(28px, 3.4vw, 42px); line-height: 1.08; letter-spacing: -0.02em; margin: 0; max-width: 22ch; }
+  h3 { font-size: 19px; margin: 0 0 6px; letter-spacing: -0.01em; }
+
+  .steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; counter-reset: step; }
+  .steps li { padding: 0 28px 0 0; counter-increment: step; }
+  .steps li + li { border-left: 1px solid var(--rule); padding-left: 28px; }
+  .steps li::before { content: counter(step, decimal-leading-zero); display: block; font: 800 54px/1 var(--sans); letter-spacing: -0.04em; color: var(--accent-fill); margin-bottom: 14px; }
+  .steps p { margin: 0; color: var(--ink-2); }
+
+  .features { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--rule); border-left: 1px solid var(--rule); }
+  .feature { padding: 22px 22px 26px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+  .feature p { margin: 0; color: var(--ink-2); font-size: 15.5px; }
+  .glyph { width: 40px; height: 22px; margin-bottom: 18px; display: flex; gap: 2px; }
+  .glyph span { flex: 1; background: var(--ink); opacity: .85; }
+  .glyph span.on { opacity: 1; background: var(--accent-fill); }
+  .glyph.g-notch { background: var(--ink); border-radius: 0 0 7px 7px; width: 26px; height: 12px; }
+  .glyph.g-edge { border-top: 4px solid var(--accent-fill); height: 22px; width: 40px; background: linear-gradient(var(--ink), var(--ink)) center 6px / 3px 14px no-repeat; }
+  .glyph.g-screens { gap: 6px; }
+  .glyph.g-screens span { border-top: 4px solid var(--accent-fill); background: transparent; border-left: 2px solid var(--ink); border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); }
+  .glyph.g-order span:nth-child(1) { flex: 3; } .glyph.g-order span:nth-child(2) { flex: 2; } .glyph.g-order span:nth-child(3) { flex: 1; }
+  .glyph.g-hide span { opacity: .25; }
+  .glyph.g-light { width: 22px; border-radius: 50%; border: 3px solid var(--ink); }
+  .glyph.g-lock { width: 22px; height: 18px; border-radius: 4px; background: var(--ink); position: relative; margin-top: 4px; }
+  .glyph.g-lock::before { content: ""; position: absolute; left: 4px; top: -9px; width: 14px; height: 12px; border: 3px solid var(--ink); border-bottom: 0; border-radius: 8px 8px 0 0; box-sizing: border-box; }
+
+  /* Settings mock */
+  .mock {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 12px; box-shadow: var(--shadow);
+    max-width: 760px; margin-inline: auto; overflow: hidden; font-size: 14px;
+  }
+  .mock-title { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--rule); background: var(--paper-2); }
+  .lights { display: flex; gap: 7px; }
+  .lights i { width: 12px; height: 12px; border-radius: 50%; display: block; background: #ef6a5e; }
+  .lights i:nth-child(2) { background: #f5bf4f; } .lights i:nth-child(3) { background: #61c454; }
+  .mock-title b { margin: 0 auto; font-weight: 600; font-size: 13px; padding-right: 50px; }
+  .mock-tabs { display: flex; justify-content: center; gap: 4px; padding: 10px; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+  .mock-tabs span { padding: 5px 11px; border-radius: 7px; color: var(--ink-2); font-size: 13px; }
+  .mock-tabs span[aria-current] { background: var(--paper-2); color: var(--ink); font-weight: 600; box-shadow: inset 0 0 0 1px var(--rule); }
+  .mock-body { padding: 18px 22px 22px; display: grid; gap: 14px; }
+  .group { border: 1px solid var(--rule); border-radius: 9px; overflow: hidden; }
+  .group-label { font-size: 12px; font-weight: 600; color: var(--ink-2); margin: 0 0 6px 4px; }
+  .row { display: grid; grid-template-columns: 1fr auto; gap: 16px; padding: 11px 14px; align-items: center; }
+  .row + .row { border-top: 1px solid var(--rule); }
+  .row small { display: block; color: var(--ink-2); font-size: 12.5px; margin-top: 2px; }
+  .preview-bar { background: color-mix(in srgb, var(--paper-2) 60%, #8b8f99); height: 44px; display: flex; align-items: center; justify-content: center; }
+  .preview-bar .tabs { margin: 0; padding: 0; height: 26px; }
+  .radio-list { display: grid; gap: 6px; }
+  .radio { display: flex; gap: 8px; align-items: center; }
+  .radio i { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--ink-2); display: inline-block; }
+  .radio.on i { border: 4.5px solid var(--accent-fill); }
+  .toggle { width: 34px; height: 20px; border-radius: 999px; background: var(--accent-fill); position: relative; display: inline-block; }
+  .toggle::after { content: ""; position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+  .toggle.off { background: var(--rule); }
+  .toggle.off::after { right: auto; left: 2px; }
+  .toggle-text { font: 600 11px/1 var(--mono); color: var(--ink-2); margin-right: 8px; vertical-align: 5px; }
+  .select { border: 1px solid var(--rule); border-radius: 6px; padding: 4px 26px 4px 10px; background: var(--paper); position: relative; white-space: nowrap; }
+  .select::after { content: "⌄"; position: absolute; right: 8px; top: 0; }
+
+  /* FAQ */
+  .faq { display: grid; gap: 0; border-top: 1px solid var(--rule); }
+  details { border-bottom: 1px solid var(--rule); padding: 18px 0; }
+  summary { cursor: pointer; font-weight: 650; font-size: 19px; list-style: none; display: flex; justify-content: space-between; gap: 20px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; font: 400 26px/1 var(--sans); color: var(--accent); }
+  details[open] summary::after { content: "−"; }
+  details p { color: var(--ink-2); margin: 10px 0 0; max-width: 66ch; }
+
+  /* Waitlist */
+  .beta { margin-top: 88px; background: var(--ink); color: var(--paper); border-radius: 18px; padding: clamp(28px, 5vw, 56px); display: grid; grid-template-columns: 1.3fr 1fr; gap: 32px; align-items: end; }
+  .beta h2 { color: var(--paper); }
+  .beta p { color: color-mix(in srgb, var(--paper) 75%, var(--ink)); margin: 14px 0 0; }
+  .beta .button { background: var(--accent-fill); color: #1a1408; }
+  .beta .button:hover { background: #ffb85c; }
+  .beta ul { margin: 0; padding: 0; list-style: none; font: 14px/1.9 var(--mono); color: color-mix(in srgb, var(--paper) 80%, var(--ink)); }
+  .beta ul li::before { content: "— "; color: var(--accent-fill); }
+
+  footer { padding: 56px 0 48px; color: var(--ink-2); font-size: 14px; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; border-top: 1px solid var(--rule); padding-top: 22px; }
+
+  @media (max-width: 900px) {
+    .features { grid-template-columns: repeat(2, 1fr); }
+    .variants, .beta { grid-template-columns: 1fr; }
+    .section-head { grid-template-columns: 1fr; gap: 8px; }
+  }
+  @media (max-width: 680px) {
+    body { font-size: 16px; }
+    .site-bar nav { display: none; }
+    .site-bar .pill-status { margin-left: auto; }
+    .steps { grid-template-columns: 1fr; gap: 28px; }
+    .steps li + li { border-left: 0; padding-left: 0; border-top: 1px solid var(--rule); padding-top: 24px; }
+    .features { grid-template-columns: 1fr; }
+    .screen { aspect-ratio: auto; height: 220px; }
+    .menubar .menus span:not(:first-child):not(:nth-child(2)) { display: none; }
+    .menubar .tabs { padding-left: 8px; }
+    .tab .lbl { display: none; }
+    .status i:not(:first-child) { display: none; }
+    .row { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .tab { transition: background .2s; }
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-bar">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="assets/icon.png" alt="" width="22" height="22">MenubarWindows</a>
+    <nav aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#settings">Settings</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <span class="pill-status">Private beta</span>
+  </div>
+</header>
+
+<main id="main">
+  <div class="wrap hero" id="top">
+    <p class="kicker">Free macOS app · private beta</p>
+    <h1>Your windows, as tabs in the <em>empty middle</em> of the menu bar.</h1>
+    <p class="lede">MenubarWindows gives every window on a display its own tab, right where your menu bar has nothing to say. Push the pointer to the top, click, and you are there.</p>
+    <div class="hero-actions">
+      <a class="button" href="#waitlist">Join the private beta</a>
+      <span class="note">macOS 13 or later. Not notarized yet.</span>
+    </div>
+
+    <div class="stage" aria-hidden="false">
+      <div class="screen" role="img" aria-label="Drawing of a Mac desktop. The menu bar shows the Apple menu and an app's menus on the left, three window tabs in the middle with the Notes tab active and underlined, and status icons and the time on the right. A pointer is pushed against the top edge over a tab.">
+        <div class="window-sketch back"></div>
+        <div class="window-sketch"></div>
+        <div class="menubar">
+          <div class="menus"><span class="apple"></span><span><b>Notes</b></span><span>File</span><span>Edit</span><span>Format</span><span>View</span></div>
+          <div class="tabs">
+            <span class="tab"><span class="ico" style="background:#4b8de6"></span><span class="lbl">Mail: Inbox</span></span>
+            <span class="tab active"><span class="ico" style="background:#f4c542"></span><span class="lbl">Notes: Groceries</span></span>
+            <span class="tab"><span class="ico" style="background:#2f343c;box-shadow:inset 0 0 0 1px #888"></span><span class="lbl">Terminal: build</span></span>
+          </div>
+          <div class="status"><i></i><i class="dot"></i><i></i><span>Tue 9:41</span></div>
+        </div>
+        <span class="cursor"></span>
+      </div>
+      <div class="caption"><span>Fig. 1: three windows, one active. The tabs touch the very top pixel.</span><span>Drawn in HTML and CSS; not a screenshot.</span></div>
+    </div>
+
+    <div class="variants">
+      <div class="notchbar" role="img" aria-label="Drawing of a menu bar on a MacBook with a notch. The tabs end just left of the notch, and the status icons sit to its right.">
+        <div class="menus"><span class="apple"></span><span><b>Safari</b></span></div>
+        <div class="tabs">
+          <span class="tab active"><span class="ico" style="background:#3d9be9"></span><span class="lbl">Safari: Docs</span></span>
+          <span class="tab"><span class="ico" style="background:#f4c542"></span><span class="lbl">Notes</span></span>
+        </div>
+        <span class="notch"></span>
+        <div class="status"><i></i><i class="dot"></i><span>9:41</span></div>
+      </div>
+      <p><strong>Got a notch?</strong> The strip ends just left of it and stays out of the way of your status icons, so nothing hides behind the camera.</p>
+    </div>
+  </div>
+
+  <section id="how" class="wrap" aria-labelledby="how-title">
+    <div class="section-head"><span class="num">01 · How it works</span><h2 id="how-title">Three steps, then it stays out of your way.</h2></div>
+    <ol class="steps">
+      <li><h3>Open the app</h3><p>No Dock icon, no menu bar icon. A short guide explains what it does and what it needs.</p></li>
+      <li><h3>Allow Accessibility</h3><p>macOS only shares window titles and window switching through Accessibility. The guide opens the right pane and notices on its own when you switch it on.</p></li>
+      <li><h3>Click a tab</h3><p>Each window on that display gets a tab. Click to bring it forward, right-click for more, middle-click to close.</p></li>
+    </ol>
+  </section>
+
+  <section id="features" class="wrap" aria-labelledby="features-title">
+    <div class="section-head"><span class="num">02 · Features</span><h2 id="features-title">Small on purpose.</h2></div>
+    <div class="features">
+      <div class="feature"><div class="glyph" aria-hidden="true"><span></span><span class="on"></span><span></span></div><h3>Lives in empty space</h3><p>Tabs sit in the middle of the menu bar, a part that is usually blank.</p></div>
+      <div class="feature"><div class="glyph g-notch" aria-hidden="true"></div><h3>Respects the notch</h3><p>On notched screens the strip stops just before the camera housing.</p></div>
+      <div class="feature"><div class="glyph g-edge" aria-hidden="true"></div><h3>Reaches the top edge</h3><p>Slam the pointer up and click. The tabs extend past the last pixel row, so you do not have to aim.</p></div>
+      <div class="feature"><div class="glyph g-screens" aria-hidden="true"><span></span><span></span></div><h3>Per display</h3><p>Every display shows only its own windows. Turn displays on or off one by one.</p></div>
+      <div class="feature"><div class="glyph g-order" aria-hidden="true"><span></span><span class="on"></span><span></span></div><h3>Your order</h3><p>Stable, most recent first, A to Z, left to right on screen, or pinned apps first.</p></div>
+      <div class="feature"><div class="glyph g-hide" aria-hidden="true"><span></span><span></span><span></span></div><h3>Hide on demand</h3><p>Need the menus underneath? Hide the strip for 10, 30 or 60 seconds, or your own choice.</p></div>
+      <div class="feature"><div class="glyph g-light" aria-hidden="true"></div><h3>Light on resources</h3><p>A small native app with no background services and no third-party code.</p></div>
+      <div class="feature"><div class="glyph g-lock" aria-hidden="true"></div><h3>Nothing leaves your Mac</h3><p>No network connections, no analytics, no accounts. It does not need Screen Recording.</p></div>
+    </div>
+  </section>
+
+  <section id="settings" class="wrap" aria-labelledby="settings-title">
+    <div class="section-head"><span class="num">03 · Settings</span><h2 id="settings-title">Tune it once. Changes apply as you make them.</h2></div>
+    <div class="mock" role="img" aria-label="Drawing of the Settings window on the Tabs and order pane: a live preview of three tabs, the tab order options with Automatic selected, a labels menu set to App name and title, and the shrink to icon-only toggle switched on.">
+      <div class="mock-title"><span class="lights"><i></i><i></i><i></i></span><b>MenubarWindows Settings</b></div>
+      <div class="mock-tabs"><span>Appearance</span><span aria-current="true">Tabs and order</span><span>Displays</span><span>Behaviour</span><span>General</span><span>About</span></div>
+      <div class="mock-body">
+        <div>
+          <p class="group-label">Preview</p>
+          <div class="group"><div class="preview-bar"><div class="tabs">
+            <span class="tab"><span class="ico" style="background:#4b8de6"></span>Mail: Inbox</span>
+            <span class="tab active"><span class="ico" style="background:#2f343c;box-shadow:inset 0 0 0 1px #888"></span>Terminal: build</span>
+            <span class="tab"><span class="ico" style="background:#f4c542"></span>Notes: Groceries</span>
+          </div></div></div>
+        </div>
+        <div>
+          <p class="group-label">Order</p>
+          <div class="group"><div class="row"><div class="radio-list">
+            <span class="radio on"><i></i>Automatic</span>
+            <span class="radio"><i></i>Most recently used first</span>
+            <span class="radio"><i></i>App name A to Z</span>
+            <span class="radio"><i></i>Left to right on screen</span>
+            <span class="radio"><i></i>Pinned apps first, then automatic</span>
+          </div><span></span></div>
+          <div class="row"><small>Keeps a stable order. A new window gets the last tab; clicking never reshuffles.</small></div></div>
+        </div>
+        <div>
+          <p class="group-label">Labels</p>
+          <div class="group">
+            <div class="row"><span>Show</span><span class="select">App name and title</span></div>
+            <div class="row"><span>Shrink to icon-only when crowded<small>When the tabs do not fit, they drop their labels first.</small></span><span><span class="toggle-text">ON</span><span class="toggle"></span></span></div>
+            <div class="row"><span>Show up to 8 tabs<small>Extra windows go into a +N tab.</small></span><span class="select">8</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq" class="wrap" aria-labelledby="faq-title">
+    <div class="section-head"><span class="num">04 · FAQ</span><h2 id="faq-title">Questions worth asking.</h2></div>
+    <div class="faq">
+      <details>
+        <summary>Why does it need Accessibility permission?</summary>
+        <p>macOS only lets an app read window titles, see which window is focused, and raise, minimize or close windows through the Accessibility API. MenubarWindows uses it for exactly that. It does not record the screen and does not need Screen Recording permission. Window titles stay in memory and are never saved or sent anywhere.</p>
+      </details>
+      <details>
+        <summary>Why is it not on the App Store?</summary>
+        <p>App Store apps must run in the sandbox, and sandboxed apps cannot control other apps' windows through Accessibility. So it will be offered as a direct download instead.</p>
+      </details>
+      <details>
+        <summary>Which macOS versions are supported?</summary>
+        <p>macOS 13 Ventura or later.</p>
+      </details>
+      <details>
+        <summary>Does it work on a MacBook with a notch?</summary>
+        <p>Yes. On a notched display the strip ends just left of the notch and stays clear of the status icons. If the remaining space is too small, the strip hides rather than overlapping.</p>
+      </details>
+      <details>
+        <summary>Is it free?</summary>
+        <p>Yes. It is free, with no account and no in-app purchases.</p>
+      </details>
+      <details>
+        <summary>Is the beta build signed?</summary>
+        <p>Not yet for distribution. Beta builds are not notarized by Apple, so macOS will warn the first time you open one. Notarization is planned before a public release.</p>
+      </details>
+    </div>
+
+    <div class="beta" id="waitlist">
+      <div>
+        <h2>Private beta. Join the waitlist.</h2>
+        <p>The beta is small and private for now. Ask to join and you will get a build when there is room.</p>
+      </div>
+      <div>
+        <!-- TODO: replace "#" with the real waitlist mailto: link or form URL before sharing this page. -->
+        <a class="button" href="#">Ask to join the beta</a>
+        <ul>
+          <li>Free</li>
+          <li>macOS 13 or later</li>
+          <li>Not notarized yet</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>MenubarWindows · private beta</span>
+    <span>No network access. No analytics. This page loads nothing from other sites.</span>
+  </div>
+</footer>
+</body>
+</html>

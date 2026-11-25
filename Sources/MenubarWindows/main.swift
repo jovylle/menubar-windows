@@ -1,10 +1,10 @@
 // main.swift
-// Entry point. `--list` prints the detected free strip and window list per screen, then exits
-// without starting the UI.
+// Entry point. `--list` prints the active settings, the detected strip region and the window list per
+// screen, then exits without starting the UI.
 //
-// Gotcha: the accessory activation policy hides the Dock icon and the app menu. Because this is a
-// plain SwiftPM executable, Accessibility permission is granted to the terminal (or the built
-// binary) that runs it, not to an app bundle.
+// Gotcha: the accessory activation policy hides the Dock icon and the app menu. Accessibility
+// permission belongs to whatever macOS sees as the app: the .app bundle when built with
+// scripts/build-app.sh, or the terminal when run with `swift run`.
 
 import AppKit
 
