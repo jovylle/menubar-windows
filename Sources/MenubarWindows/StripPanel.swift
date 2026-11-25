@@ -22,7 +22,7 @@ final class StripPanel: NSPanel {
             defer: false
         )
         isFloatingPanel = true
-        level = .statusBar
+        level = .popUpMenu
         backgroundColor = .clear
         isOpaque = false
         hasShadow = false
@@ -35,6 +35,12 @@ final class StripPanel: NSPanel {
 
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
+
+    /// AppKit pushes ordinary windows below the menu bar. Returning the rect unchanged lets the
+    /// panel sit inside it.
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        frameRect
+    }
 }
 
 final class StripContentView: NSView {
