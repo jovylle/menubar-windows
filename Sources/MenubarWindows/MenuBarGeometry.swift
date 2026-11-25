@@ -223,7 +223,9 @@ enum MenuBarGeometry {
         lo = max(screen.frame.minX + StripLayout.minimumLeftInset, min(lo, hi - width))
         guard hi - lo >= StripLayout.minimumStripWidth else { return nil }
 
-        let height = menuBarHeight(screen)
+        // Tabs are a share of the bar height, flush with the top. The panel is only as tall as the
+        // tabs (plus the overscan above the screen), so the rest of the bar stays clickable.
+        let height = (menuBarHeight(screen) * CGFloat(Settings.shared.tabHeightPercent) / 100).rounded()
         let frame = NSRect(
             x: lo,
             y: screen.frame.maxY - height,

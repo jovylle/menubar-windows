@@ -107,7 +107,13 @@ final class PreviewBarView: NSView {
         case .center: x = (bounds.width - width) / 2
         case .left: x = 60
         }
-        strip.frame = NSRect(x: x.rounded(), y: barY, width: width.rounded(.up), height: Self.barHeight)
+        let tabHeight = (Self.barHeight * CGFloat(Settings.shared.tabHeightPercent) / 100).rounded()
+        strip.frame = NSRect(
+            x: x.rounded(),
+            y: barY + Self.barHeight - tabHeight,
+            width: width.rounded(.up),
+            height: tabHeight + StripLayout.topOverscan
+        )
     }
 
     private static var iconCache: [String: NSImage] = [:]

@@ -91,6 +91,7 @@ final class Settings: ObservableObject {
         static let shrinkWhenCrowded = true
         static let style = TabStyle.square
         static let theme = ColorTheme.system
+        static let tabHeightPercent: Double = 80
         static let indicator = ActiveIndicator.both
         static let useSystemAccent = true
         static let customAccent: [Double] = [0.95, 0.55, 0.15, 1]
@@ -108,6 +109,7 @@ final class Settings: ObservableObject {
         static let showSettingsOnReopen = true
     }
 
+    static let tabHeightRange: ClosedRange<Double> = 50...100
     static let stripWidthRange: ClosedRange<Double> = 240...900
     static let maxTabsRange: ClosedRange<Int> = 3...12
     static let smallWindowRange: ClosedRange<Double> = 40...300
@@ -123,6 +125,8 @@ final class Settings: ObservableObject {
     @Published var maxTabs: Int { didSet { store.set(maxTabs, forKey: Key.maxTabs) } }
 
     // Appearance
+    /// Tab height as a percentage of the menu bar height. Tabs stay flush with the top edge.
+    @Published var tabHeightPercent: Double { didSet { store.set(tabHeightPercent, forKey: Key.tabHeight) } }
     @Published var theme: ColorTheme { didSet { store.set(theme.rawValue, forKey: Key.theme) } }
     @Published var style: TabStyle { didSet { store.set(style.rawValue, forKey: Key.style) } }
     @Published var indicator: ActiveIndicator { didSet { store.set(indicator.rawValue, forKey: Key.indicator) } }
@@ -157,6 +161,7 @@ final class Settings: ObservableObject {
         static let maxTabs = "mw.maxTabs"
         static let style = "mw.style"
         static let theme = "mw.colorTheme"
+        static let tabHeight = "mw.tabHeightPercent"
         static let indicator = "mw.indicator"
         static let useSystemAccent = "mw.useSystemAccent"
         static let customAccent = "mw.customAccent"
@@ -200,6 +205,7 @@ final class Settings: ObservableObject {
         maxTabs = min(max(value(Key.maxTabs, Defaults.maxTabs), Self.maxTabsRange.lowerBound), Self.maxTabsRange.upperBound)
         style = choice(Key.style, Defaults.style)
         theme = choice(Key.theme, Defaults.theme)
+        tabHeightPercent = min(max(value(Key.tabHeight, Defaults.tabHeightPercent), Self.tabHeightRange.lowerBound), Self.tabHeightRange.upperBound)
         indicator = choice(Key.indicator, Defaults.indicator)
         useSystemAccent = value(Key.useSystemAccent, Defaults.useSystemAccent)
         let accent: [Double] = value(Key.customAccent, Defaults.customAccent)
@@ -288,6 +294,8 @@ final class Settings: ObservableObject {
         shrinkWhenCrowded = Defaults.shrinkWhenCrowded
         maxTabs = Defaults.maxTabs
         style = Defaults.style
+        theme = Defaults.theme
+        tabHeightPercent = Defaults.tabHeightPercent
         indicator = Defaults.indicator
         useSystemAccent = Defaults.useSystemAccent
         customAccent = Defaults.customAccent

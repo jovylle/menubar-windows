@@ -109,6 +109,16 @@ private struct AppearancePane: View {
             }
 
             Section("Strip") {
+                HStack {
+                    Slider(value: $settings.tabHeightPercent, in: Settings.tabHeightRange, step: 5) {
+                        Text("Tab height")
+                    }
+                    Text("\(Int(settings.tabHeightPercent))% of the menu bar")
+                        .monospacedDigit()
+                        .frame(width: 150, alignment: .trailing)
+                }
+                Help("Tabs stay flush with the top. A shorter tab leaves the bottom of the menu bar clear.")
+
                 Picker("Width", selection: $settings.widthMode) {
                     ForEach(StripWidthMode.allCases) { Text($0.title).tag($0) }
                 }
