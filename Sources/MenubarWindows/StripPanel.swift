@@ -64,6 +64,8 @@ final class StripPanel: NSPanel {
 struct StripOptions: Equatable {
     var shrinkWhenCrowded = true
     var alignment: StripAlignment = .center
+    var equalWidth = true
+    var maxTabWidth: CGFloat = 220
     /// Space above the pills that belongs to the panel but not the drawn tab (the top overscan).
     var topOverscan: CGFloat = StripLayout.topOverscan
 
@@ -71,7 +73,9 @@ struct StripOptions: Equatable {
         // Top left placement always starts the tabs at the strip's left edge, also in Fixed width.
         StripOptions(
             shrinkWhenCrowded: Settings.shared.shrinkWhenCrowded,
-            alignment: Settings.shared.placement == .left ? .left : Settings.shared.alignment
+            alignment: Settings.shared.placement == .left ? .left : Settings.shared.alignment,
+            equalWidth: Settings.shared.equalTabWidth,
+            maxTabWidth: CGFloat(Settings.shared.maxTabWidth)
         )
     }
 }
@@ -280,7 +284,7 @@ final class StripContentView: NSView {
         let newSignature = (models + overflow)
             .map { "\($0.key)|\($0.text)|\($0.isActive)|\($0.isMinimized)" }
             .joined(separator: "\n")
-            + "#\(overflow.count)#\(appearance.signature)#\(options.shrinkWhenCrowded)#\(options.alignment.rawValue)"
+            + "#\(overflow.count)#\(appearance.signature)#\(options.shrinkWhenCrowded)#\(options.alignment.rawValue)#\(options.equalWidth)#\(options.maxTabWidth)"
         overflowModels = overflow
         guard newSignature != signature else { return }
         signature = newSignature
@@ -330,6 +334,7 @@ final class StripContentView: NSView {
     /// Width the pills need, given at most `maximum`. Used by Automatic width mode to trim the panel.
     func preferredWidth(maximum: CGFloat) -> CGFloat {
         guard !pills.isEmpty else { return 0 }
+        if let equal = equalWidths(available: maximum) { return total(equal.widths) }
         let natural = total(pills.map(\.naturalWidth))
         if natural <= maximum { return natural }
         if options.shrinkWhenCrowded {
@@ -337,6 +342,23 @@ final class StripContentView: NSView {
             if compact <= maximum { return compact }
         }
         return maximum
+    }
+
+    /// Equal tab widths: every window tab gets the same width, the tabs share the available space, and
+    /// a tab never grows past the maximum width. The "+N" tab keeps its natural width. Returns nil when
+    /// equal widths are off or the strip only holds the permission pill.
+    private func equalWidths(available: CGFloat) -> (widths: [CGFloat], compact: Bool)? {
+        guard options.equalWidth, !pills.contains(where: { $0.model.key == "grant-accessibility" }) else { return nil }
+        let tabs = pills.filter { $0.model.key != "overflow" }
+        guard !tabs.isEmpty else { return nil }
+        let overflow = pills.first { $0.model.key == "overflow" }
+        let reserved = overflow.map { $0.naturalWidth + gap } ?? 0
+        let count = CGFloat(tabs.count)
+        let share = (available - reserved - gap * (count - 1)) / count
+        let tabWidth = max(StripLayout.minimumPillWidth, min(options.maxTabWidth, share.rounded(.down)))
+        let compact = options.shrinkWhenCrowded && tabWidth < StripLayout.equalCompactBelow
+        let widths = pills.map { $0.model.key == "overflow" ? $0.naturalWidth : tabWidth }
+        return (widths, compact)
     }
 
     private func total(_ widths: [CGFloat]) -> CGFloat {
@@ -356,11 +378,14 @@ final class StripContentView: NSView {
 
         var compact = false
         var widths = pills.map(\.naturalWidth)
-        if total(widths) > width + 0.5, options.shrinkWhenCrowded {
+        if let equal = equalWidths(available: width) {
+            widths = equal.widths
+            compact = equal.compact
+        } else if total(widths) > width + 0.5, options.shrinkWhenCrowded {
             compact = true
             widths = pills.map { $0.isCompactable ? $0.compactWidth : $0.naturalWidth }
         }
-        if total(widths) > width + 0.5 {
+        if equalWidths(available: width) == nil, total(widths) > width + 0.5 {
             let count = CGFloat(pills.count)
             let equalShare = (width - gap * (count - 1)) / count
             widths = Array(repeating: max(StripLayout.minimumPillWidth, equalShare), count: pills.count)

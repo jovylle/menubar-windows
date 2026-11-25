@@ -90,6 +90,19 @@ private struct AppearancePane: View {
                 Help("Pure black keeps every tab black with white text, whatever the system appearance. "
                     + "The active tab has full-white text and the others are slightly dimmer.")
 
+                Toggle("Same width for every tab", isOn: $settings.equalTabWidth)
+                HStack {
+                    Slider(value: $settings.maxTabWidth, in: Settings.maxTabWidthRange, step: 10) {
+                        Text("Widest tab")
+                    }
+                    Text("\(Int(settings.maxTabWidth)) pt")
+                        .monospacedDigit()
+                        .frame(width: 70, alignment: .trailing)
+                }
+                .disabled(!settings.equalTabWidth)
+                Help("Tabs share the room in the bar equally, like browser tabs, and shrink as more windows open. "
+                    + "Very narrow tabs show only the app icon.")
+
                 Picker("Tab style", selection: $settings.style) {
                     ForEach(TabStyle.allCases) { Text($0.title).tag($0) }
                 }

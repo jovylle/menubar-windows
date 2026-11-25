@@ -44,6 +44,8 @@ enum StripLayout {
     static let pillGap: CGFloat = 1
     static let roundedPillGap: CGFloat = 3
     static let minimumPillWidth: CGFloat = 44
+    /// Equal-width tabs narrower than this drop their labels and show the icon only.
+    static let equalCompactBelow: CGFloat = 96
     static let iconSize: CGFloat = 14
 }
 

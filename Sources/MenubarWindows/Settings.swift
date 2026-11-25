@@ -103,6 +103,8 @@ final class Settings: ObservableObject {
         static let shrinkWhenCrowded = true
         static let style = TabStyle.square
         static let theme = ColorTheme.system
+        static let equalTabWidth = true
+        static let maxTabWidth: Double = 220
         static let tabHeightPercent: Double = 85
         static let indicator = ActiveIndicator.brighterFill
         static let useSystemAccent = true
@@ -122,6 +124,7 @@ final class Settings: ObservableObject {
         static let showSettingsOnReopen = true
     }
 
+    static let maxTabWidthRange: ClosedRange<Double> = 120...400
     static let tabHeightRange: ClosedRange<Double> = 50...100
     static let stripWidthRange: ClosedRange<Double> = 240...900
     static let maxTabsRange: ClosedRange<Int> = 3...12
@@ -140,6 +143,10 @@ final class Settings: ObservableObject {
     // Appearance
     /// Tab height as a percentage of the menu bar height. Tabs stay flush with the top edge.
     @Published var tabHeightPercent: Double { didSet { store.set(tabHeightPercent, forKey: Key.tabHeight) } }
+    /// Every tab gets the same width and the tabs share the available space, like browser tabs.
+    @Published var equalTabWidth: Bool { didSet { store.set(equalTabWidth, forKey: Key.equalWidth) } }
+    /// Widest a tab may grow when there is plenty of room (equal widths only).
+    @Published var maxTabWidth: Double { didSet { store.set(maxTabWidth, forKey: Key.maxTabWidth) } }
     @Published var theme: ColorTheme { didSet { store.set(theme.rawValue, forKey: Key.theme) } }
     @Published var style: TabStyle { didSet { store.set(style.rawValue, forKey: Key.style) } }
     @Published var indicator: ActiveIndicator { didSet { store.set(indicator.rawValue, forKey: Key.indicator) } }
@@ -175,6 +182,8 @@ final class Settings: ObservableObject {
         static let maxTabs = "mw.maxTabs"
         static let style = "mw.style"
         static let theme = "mw.colorTheme"
+        static let equalWidth = "mw.equalTabWidth"
+        static let maxTabWidth = "mw.maxTabWidth"
         static let tabHeight = "mw.tabHeightPercent"
         static let indicator = "mw.indicator"
         static let useSystemAccent = "mw.useSystemAccent"
@@ -220,6 +229,8 @@ final class Settings: ObservableObject {
         maxTabs = min(max(value(Key.maxTabs, Defaults.maxTabs), Self.maxTabsRange.lowerBound), Self.maxTabsRange.upperBound)
         style = choice(Key.style, Defaults.style)
         theme = choice(Key.theme, Defaults.theme)
+        equalTabWidth = value(Key.equalWidth, Defaults.equalTabWidth)
+        maxTabWidth = min(max(value(Key.maxTabWidth, Defaults.maxTabWidth), Self.maxTabWidthRange.lowerBound), Self.maxTabWidthRange.upperBound)
         tabHeightPercent = min(max(value(Key.tabHeight, Defaults.tabHeightPercent), Self.tabHeightRange.lowerBound), Self.tabHeightRange.upperBound)
         indicator = choice(Key.indicator, Defaults.indicator)
         useSystemAccent = value(Key.useSystemAccent, Defaults.useSystemAccent)
@@ -311,6 +322,8 @@ final class Settings: ObservableObject {
         maxTabs = Defaults.maxTabs
         style = Defaults.style
         theme = Defaults.theme
+        equalTabWidth = Defaults.equalTabWidth
+        maxTabWidth = Defaults.maxTabWidth
         tabHeightPercent = Defaults.tabHeightPercent
         indicator = Defaults.indicator
         useSystemAccent = Defaults.useSystemAccent
