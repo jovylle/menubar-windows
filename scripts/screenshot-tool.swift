@@ -9,6 +9,11 @@
 //                                               compose a 1920x1080 image: gradient, drawn menu bar,
 //                                               the real strip capture in the middle of the bar and the
 //                                               real menu capture hanging below the strip
+//   notch <strip.png> <out.png> <light|black> <tabHeightPt>
+//                                               compose a 1800x260 image of the top-left corner of a notched
+//                                               MacBook: bezel, rounded screen corner, drawn menu bar with the
+//                                               notch, and the real strip capture between the Apple menu and
+//                                               the notch (the layout of a 14-inch MacBook Pro, 1512pt wide)
 //
 // Gotchas:
 // - `windows` filters by process ID, never by owner name alone: another copy of the app may be running
@@ -169,6 +174,98 @@ func hero(strip: String, menu: String, output: String, black: Bool, menuOffset: 
     save(image, output)
 }
 
+/// The top-left corner of a notched MacBook with the real strip between the Apple menu and the notch.
+/// Geometry in points follows a 14-inch display: the notch spans x 663 to 848, the menu bar is 34pt high,
+/// and the app's region starts 42pt from the left edge. Drawn at 2 px per point, like the captures.
+func notchHero(strip: String, output: String, black: Bool, tabHeight: CGFloat) {
+    let width = 1800, height = 260
+    let px: CGFloat = 2
+    let bezel: CGFloat = 24
+    let ctx = context(width: width, height: height, opaque: true)
+    let size = CGSize(width: width, height: height)
+
+    ctx.setFillColor(CGColor(srgbRed: 0.07, green: 0.07, blue: 0.08, alpha: 1))
+    ctx.fill(CGRect(origin: .zero, size: size))
+
+    // The screen: its top-left corner is rounded, the other edges run off the image.
+    let screen = CGRect(x: bezel, y: -40, width: size.width - bezel + 40, height: size.height - bezel + 40)
+    let radius: CGFloat = 26
+    let path = CGMutablePath()
+    path.move(to: CGPoint(x: screen.minX, y: screen.minY))
+    path.addLine(to: CGPoint(x: screen.minX, y: screen.maxY - radius))
+    path.addArc(center: CGPoint(x: screen.minX + radius, y: screen.maxY - radius), radius: radius,
+                startAngle: .pi, endAngle: .pi / 2, clockwise: true)
+    path.addLine(to: CGPoint(x: screen.maxX, y: screen.maxY))
+    path.addLine(to: CGPoint(x: screen.maxX, y: screen.minY))
+    path.closeSubpath()
+    ctx.saveGState()
+    ctx.addPath(path)
+    ctx.clip()
+
+    let colors: [CGColor] = black
+        ? [CGColor(srgbRed: 0.09, green: 0.13, blue: 0.30, alpha: 1), CGColor(srgbRed: 0.02, green: 0.04, blue: 0.12, alpha: 1)]
+        : [CGColor(srgbRed: 0.62, green: 0.74, blue: 0.95, alpha: 1), CGColor(srgbRed: 0.84, green: 0.80, blue: 0.96, alpha: 1)]
+    let gradient = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: colors as CFArray, locations: [0, 1])!
+    ctx.drawLinearGradient(gradient, start: CGPoint(x: 0, y: size.height - bezel), end: CGPoint(x: 0, y: 0), options: [])
+
+    let top = size.height - bezel            // y of the top edge of the screen
+    let barHeight = 34 * px
+    let barRect = CGRect(x: screen.minX, y: top - barHeight, width: screen.width, height: barHeight)
+    ctx.setFillColor(black ? CGColor(gray: 0, alpha: 0.45) : CGColor(gray: 1, alpha: 0.55))
+    ctx.fill(barRect)
+
+    func pointX(_ points: CGFloat) -> CGFloat { screen.minX + points * px }
+
+    let graphics = NSGraphicsContext(cgContext: ctx, flipped: false)
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = graphics
+    let textColor: NSColor = black ? .white : NSColor(white: 0.08, alpha: 1)
+    let fontSize = 13 * px
+    func symbol(_ name: String, at points: CGFloat, size pointSize: CGFloat) {
+        guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: pointSize, weight: .regular)) else { return }
+        let tinted = NSImage(size: image.size, flipped: false) { rect in
+            image.draw(in: rect)
+            textColor.set()
+            rect.fill(using: .sourceAtop)
+            return true
+        }
+        tinted.draw(in: CGRect(x: pointX(points), y: barRect.midY - image.size.height / 2, width: image.size.width, height: image.size.height))
+    }
+    symbol("apple.logo", at: 14, size: fontSize * 1.05)
+    symbol("wifi", at: 858, size: fontSize * 0.95)
+    symbol("battery.100", at: 876, size: fontSize * 0.95)
+    NSGraphicsContext.restoreGraphicsState()
+
+    // The real strip capture, 2x, tab bodies flush with the top of the screen.
+    let stripImage = load(strip)
+    let stripSize = CGSize(width: CGFloat(stripImage.width), height: CGFloat(stripImage.height))
+    ctx.interpolationQuality = .high
+    ctx.draw(stripImage, in: CGRect(x: pointX(42), y: top - tabHeight * px, width: stripSize.width, height: stripSize.height))
+
+    // The notch: black, square at the top, rounded at the bottom.
+    let notchLeft = pointX(663), notchRight = pointX(848)
+    let notchBottom = top - 33 * px
+    let corner: CGFloat = 12 * px
+    let notch = CGMutablePath()
+    notch.move(to: CGPoint(x: notchLeft, y: top + 2))
+    notch.addLine(to: CGPoint(x: notchLeft, y: notchBottom + corner))
+    notch.addArc(center: CGPoint(x: notchLeft + corner, y: notchBottom + corner), radius: corner,
+                 startAngle: .pi, endAngle: 3 * .pi / 2, clockwise: false)
+    notch.addLine(to: CGPoint(x: notchRight - corner, y: notchBottom))
+    notch.addArc(center: CGPoint(x: notchRight - corner, y: notchBottom + corner), radius: corner,
+                 startAngle: 3 * .pi / 2, endAngle: 0, clockwise: false)
+    notch.addLine(to: CGPoint(x: notchRight, y: top + 2))
+    notch.closeSubpath()
+    ctx.setFillColor(CGColor(gray: 0, alpha: 1))
+    ctx.addPath(notch)
+    ctx.fillPath()
+    ctx.restoreGState()
+
+    guard let image = ctx.makeImage() else { fail("cannot render") }
+    save(image, output)
+}
+
 let args = CommandLine.arguments
 guard args.count >= 2 else { fail("usage: screenshot-tool windows|crop|trim|hero ...") }
 switch args[1] {
@@ -190,6 +287,8 @@ case "trim" where args.count == 4:
 case "hero" where args.count == 8:
     hero(strip: args[2], menu: args[3], output: args[4], black: args[5] == "black",
          menuOffset: CGFloat(Double(args[6]) ?? 0), tabHeight: CGFloat(Double(args[7]) ?? 29))
+case "notch" where args.count == 6:
+    notchHero(strip: args[2], output: args[3], black: args[4] == "black", tabHeight: CGFloat(Double(args[5]) ?? 29))
 default:
-    fail("usage: screenshot-tool windows|crop|trim|hero ...")
+    fail("usage: screenshot-tool windows|crop|trim|hero|notch ...")
 }
