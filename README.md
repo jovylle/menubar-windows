@@ -2,6 +2,8 @@
 
 Your windows, as tabs in the empty middle of the menu bar.
 
+![Six window tabs in the menu bar, with the right-click menu open below the active tab](assets/screenshots/hero.png)
+
 MenubarWindows is a small, free, open source macOS app (MIT) that draws a strip of window tabs **inside the
 menu bar**, one tab per window on that display. Click a tab to bring its window forward. The tabs reach
 the very top edge of the screen, so you can push the pointer up and click without aiming.
@@ -12,21 +14,39 @@ from there (`scripts/app-info.sh`), and the version comes from [`VERSION`](VERSI
 
 ## Screenshots
 
-Captured from the real app in demo mode (invented apps and windows, see below).
+All images are captured from the real app in demo mode: the apps and windows are invented (see
+[Screenshots and demo mode](#screenshots-and-demo-mode)). The menu bar around the strip in the two hero
+images is drawn.
 
-![Six window tabs in the menu bar with the right-click menu open below the active tab](assets/screenshots/hero.png)
+**Light and pure black**
+
+![Light theme strip with six tabs](assets/screenshots/strip-light.png)
+
+![Pure black theme strip with six tabs](assets/screenshots/strip-black.png)
+
+**Many windows: tabs shrink to icons**
+
+![Eight tabs shown as icons only](assets/screenshots/strip-compact.png)
+
+**Right-click a tab**
+
+<img src="assets/screenshots/context-menu.png" alt="Right-click menu: hide for 10 seconds, 30 seconds, 1 minute, pin, close, minimize, settings, quit" width="300">
+
+**Settings**
 
 | | |
 | --- | --- |
-| ![Pure black theme](assets/screenshots/hero-black.png) | ![Settings, Tabs and order](assets/screenshots/settings-tabs.png) |
-| Pure black theme | Settings, Tabs and order |
-| ![Settings, Appearance](assets/screenshots/settings-appearance.png) | ![First-run guide](assets/screenshots/onboarding.png) |
-| Settings, Appearance | First-run guide |
+| ![Tabs and order, with the order picker](assets/screenshots/settings-tabs.png) | ![Appearance](assets/screenshots/settings-appearance.png) |
+| Tabs and order: five tab orders, pinning | Appearance: theme, tab style, width, height |
+| ![Displays](assets/screenshots/settings-displays.png) | ![First-run guide](assets/screenshots/onboarding.png) |
+| Displays: choose where tabs appear | First-run guide for the Accessibility permission |
 
-More in [`assets/screenshots/`](assets/screenshots/): the strip on its own (`strip-light.png`,
-`strip-black.png`, `strip-three.png`, `strip-compact.png` with eight icon-only tabs), the right-click
-menu (`context-menu.png`, `context-menu-dark.png`, `strip-menu.png`), every Settings pane and the order
-picker. The two hero images place the real strip and menu captures on a drawn menu bar.
+**Pure black desktop**
+
+![Pure black theme with the right-click menu open](assets/screenshots/hero-black.png)
+
+More in [`assets/screenshots/`](assets/screenshots/): `strip-three.png`, `strip-menu.png`,
+`context-menu-dark.png`, `order-picker.png` and the other Settings panes.
 
 ## Features
 
