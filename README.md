@@ -93,14 +93,28 @@ Ordering is a pure function in `Sources/MenubarWindowsCore/TabOrdering.swift` wi
 
 ## Install
 
-Not published yet. When it is, the plan is:
+**Homebrew** (Apple silicon, macOS 13 or later):
 
-```
+```sh
 brew install --cask jovylle/tap/menubarwindows
 ```
 
-or download the dmg from the GitHub release and drag the app to Applications. The cask, the release
-script and the steps to publish a tap are in `packaging/homebrew/`. Building from source is below.
+That one command adds the tap (`jovylle/homebrew-tap`) and installs the app into `/Applications`.
+Update with `brew upgrade --cask menubarwindows`, remove with `brew uninstall --cask menubarwindows`.
+
+**Or download** `MenubarWindows-0.1.0.dmg` from the
+[latest release](https://github.com/jovylle/menubar-windows/releases/latest), open it and drag the app
+to Applications. The release lists a SHA-256 checksum next to the dmg.
+
+**First launch.** This build is not notarized by Apple yet, so macOS blocks it the first time:
+
+1. Open the app once. macOS shows a warning and does not start it.
+2. Open **System Settings > Privacy & Security**, scroll down and click **Open Anyway**.
+3. Switch on **MenubarWindows** under **Privacy & Security > Accessibility**. The first-run window opens
+   the right pane for you and updates on its own once access is granted.
+
+The app is signed ad hoc, so macOS can ask for the Accessibility permission again after an update. A
+notarized build with a stable signature will remove that. Building from source is below.
 
 ## Build and run
 
