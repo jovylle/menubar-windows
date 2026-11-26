@@ -155,6 +155,9 @@ strip_shot strip-light.png   $LIGHT $SIX
 strip_shot strip-black.png   $LIGHT $SIX -mw.colorTheme black
 strip_shot strip-compact.png $LIGHT -mw.demoCount 8 -mw.demoActive 2
 strip_shot strip-three.png   $LIGHT -mw.demoCount 3
+# The same six tabs with another tab active, for the click scene of the demo video.
+strip_shot strip-light-a0.png $LIGHT $SIX -mw.demoActive 0
+strip_shot strip-light-a2.png $LIGHT $SIX -mw.demoActive 2
 
 menu_shot context-menu.png      light strip-menu.png $LIGHT $SIX
 menu_shot context-menu-dark.png dark  ""             -mw.debugAppearance dark $SIX -mw.colorTheme black
