@@ -194,6 +194,9 @@
 
   /* Settings mock */
   .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .notchshot { margin: 0 0 18px; }
+  .notchshot img { display: block; width: 100%; height: auto; border-radius: 12px; }
+  .notchshot figcaption { font: 13px/1.5 var(--mono); color: var(--ink-2); padding-top: 10px; }
   .shots figure { margin: 0; }
   .shots figure.wide { grid-column: 1 / -1; }
   .shots img { display: block; width: 100%; height: auto; border-radius: 10px; box-shadow: var(--shadow); background: var(--paper-2); }
@@ -323,15 +326,10 @@
     </div>
 
     <div class="variants">
-      <div class="notchbar" role="img" aria-label="Drawing of a menu bar on a MacBook with a notch. The tabs end just left of the notch, and the status icons sit to its right.">
-        <div class="menus"><span class="apple"></span><span><b>Safari</b></span></div>
-        <div class="tabs">
-          <span class="tab active"><span class="ico" style="background:#3d9be9"></span><span class="lbl">Safari: Docs</span></span>
-          <span class="tab"><span class="ico" style="background:#f4c542"></span><span class="lbl">Notes</span></span>
-        </div>
-        <span class="notch"></span>
-        <div class="status"><i></i><i class="dot"></i><span>9:41</span></div>
-      </div>
+      <figure class="notchshot">
+        <img src="assets/hero-notch.png" width="1800" height="260" loading="lazy" alt="The top-left corner of a MacBook with a notch: six tabs sit between the Apple menu and the notch, and the status icons stay to the right of the notch.">
+        <figcaption>Six real tabs between the Apple menu and the notch, at the scale of a 14-inch MacBook Pro. The bezel, notch and Apple menu are drawn; the apps are invented.</figcaption>
+      </figure>
       <p><strong>Got a notch?</strong> The strip ends just left of it, in the stretch where an app's menu titles are rarely used, and stays out of the way of your status icons. Want it on the left instead? One setting puts the tabs top left, right after the Apple menu.</p>
     </div>
   </div>

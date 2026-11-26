@@ -189,9 +189,12 @@ if [ -f "$OUT/strip-light.png" ] && [ -f "$OUT/context-menu.png" ] && [ -f .buil
     "$TOOL" hero "$OUT/strip-light.png" "$OUT/context-menu.png" "$OUT/hero.png" light "$(cat .build/screenshot-offset-light)" "$TAB"
     "$TOOL" hero "$OUT/strip-black.png" "$OUT/context-menu-dark.png" "$OUT/hero-black.png" black "$(cat .build/screenshot-offset-dark)" "$TAB"
     echo "composed $OUT/hero.png and $OUT/hero-black.png"
+    "$TOOL" notch "$OUT/strip-light.png" "$OUT/hero-notch.png" light "$TAB"
+    "$TOOL" notch "$OUT/strip-black.png" "$OUT/hero-notch-black.png" black "$TAB"
+    echo "composed $OUT/hero-notch.png and $OUT/hero-notch-black.png"
     # The landing page uses four of them, referenced locally.
-    cp "$OUT/hero.png" "$OUT/hero-black.png" "$OUT/settings-tabs.png" "$OUT/strip-compact.png" site/assets/
-    echo "copied four screenshots to site/assets/"
+    cp "$OUT/hero.png" "$OUT/hero-black.png" "$OUT/hero-notch.png" "$OUT/settings-tabs.png" "$OUT/strip-compact.png" site/assets/
+    echo "copied five screenshots to site/assets/"
 fi
 
 for f in "$OUT"/*.png; do

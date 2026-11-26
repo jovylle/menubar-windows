@@ -28,6 +28,15 @@ All images are captured from the real app in demo mode: the apps and windows are
 [Screenshots and demo mode](#screenshots-and-demo-mode)). The menu bar around the strip in the two hero
 images is drawn.
 
+**On a MacBook with a notch**
+
+![Six tabs between the Apple menu and the notch](assets/screenshots/hero-notch.png)
+
+The real strip, 6 tabs, drawn at the scale of a 14-inch MacBook Pro (1512 pt wide): the tabs fit between the
+Apple menu and the notch, and the status icons on the right stay untouched. The bezel, notch and Apple
+menu around the strip are drawn; the tabs are a real capture. Pure black version:
+[`hero-notch-black.png`](assets/screenshots/hero-notch-black.png).
+
 **Light and pure black**
 
 ![Light theme strip with six tabs](assets/screenshots/strip-light.png)
