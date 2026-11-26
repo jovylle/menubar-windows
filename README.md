@@ -8,6 +8,16 @@ MenubarWindows is a small, free, open source macOS app (MIT) that draws a strip 
 menu bar**, one tab per window on that display. Click a tab to bring its window forward. The tabs reach
 the very top edge of the screen, so you can push the pointer up and click without aiming.
 
+**It uses space you rarely use.** The right-hand end of an app's menus (Window, Help and similar titles)
+and the stretch of bar next to the notch are almost never clicked. That is where the tabs go.
+
+- **On a MacBook with a notch** the camera housing splits the menu bar, and the area left of it is the
+  part apps fill with their menu titles. The tabs end just before the notch, so they sit against it
+  and your status icons on the right stay untouched.
+- **Prefer the left?** Switch **Placement** to *Top left, right after the Apple menu* in Settings and
+  the tabs start at the left end of the bar instead, where the app's menus begin.
+- **Need a menu under the tabs?** Right-click a tab and choose *Hide for 10 seconds*.
+
 The product name, bundle identifier and tagline live in one place:
 [`Sources/MenubarWindows/AppInfo.swift`](Sources/MenubarWindows/AppInfo.swift). The scripts read them
 from there (`scripts/app-info.sh`), and the version comes from [`VERSION`](VERSION).
@@ -50,9 +60,10 @@ More in [`assets/screenshots/`](assets/screenshots/): `strip-three.png`, `strip-
 
 ## Features
 
-- Tabs live in the unused middle of the menu bar, left of the status icons, on every display that shows
-  a menu bar.
-- Handles the notch: on notched screens the strip ends just left of it.
+- Tabs live in the rarely used part of the menu bar (the far end of the app's menu titles and the area
+  beside the notch), left of the status icons, on every display that shows a menu bar.
+- Handles the notch: on notched laptops the strip ends just left of it, against the camera housing.
+- Placement: in the middle of the bar (next to the notch), or top left right after the Apple menu.
 - Clicks land at the very top pixel row: the panel extends 6pt above the screen edge.
 - Stays clear of status icons, and leaves the Apple menu and the app name usable.
 - Five tab orders, pinning, four label modes, two tab styles, two color themes (match the system or
