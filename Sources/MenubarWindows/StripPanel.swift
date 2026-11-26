@@ -15,6 +15,7 @@
 //   window pixels; the near-invisible fill keeps the strip, including the top overscan, clickable.
 
 import AppKit
+import MenubarWindowsCore
 
 /// Actions the strip's context menu needs. Implemented by AppDelegate.
 protocol StripActions: AnyObject {
@@ -70,10 +71,9 @@ struct StripOptions: Equatable {
     var topOverscan: CGFloat = StripLayout.topOverscan
 
     static var current: StripOptions {
-        // Top left placement always starts the tabs at the strip's left edge, also in Fixed width.
         StripOptions(
             shrinkWhenCrowded: Settings.shared.shrinkWhenCrowded,
-            alignment: Settings.shared.placement == .left ? .left : Settings.shared.alignment,
+            alignment: Settings.shared.alignment,
             equalWidth: Settings.shared.equalTabWidth,
             maxTabWidth: CGFloat(Settings.shared.maxTabWidth)
         )
@@ -367,9 +367,15 @@ final class StripContentView: NSView {
         guard !tabs.isEmpty else { return nil }
         let overflow = pills.first { $0.model.key == "overflow" }
         let reserved = overflow.map { $0.naturalWidth + gap } ?? 0
-        let count = CGFloat(tabs.count)
-        let share = (available - reserved - gap * (count - 1)) / count
-        let tabWidth = max(StripLayout.minimumPillWidth, min(options.maxTabWidth, share.rounded(.down)))
+        let tabWidth = StripFill.equalTabWidth(
+            available: available,
+            reserved: reserved,
+            gap: gap,
+            count: tabs.count,
+            maximum: options.maxTabWidth,
+            minimum: StripLayout.minimumPillWidth,
+            fills: StripFill.fillsRegion(tabCount: tabs.count)
+        )
         let compact = options.shrinkWhenCrowded && tabWidth < StripLayout.equalCompactBelow
         let widths = pills.map { $0.model.key == "overflow" ? $0.naturalWidth : tabWidth }
         return (widths, compact)
@@ -413,7 +419,7 @@ final class StripContentView: NSView {
         var x: CGFloat
         switch options.alignment {
         case .center: x = max(0, (width - contentWidth) / 2)
-        case .left: x = 0
+        case .right: x = max(0, width - contentWidth)
         }
         for (pill, pillWidth) in zip(pills, widths) {
             pill.frame = NSRect(x: x, y: 0, width: pillWidth, height: height - options.topOverscan)

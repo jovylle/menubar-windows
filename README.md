@@ -18,10 +18,9 @@ the very top edge of the screen, so you can push the pointer up and click withou
 and the stretch of bar next to the notch are almost never clicked. That is where the tabs go.
 
 - **On a MacBook with a notch** the camera housing splits the menu bar, and the area left of it is the
-  part apps fill with their menu titles. The tabs end just before the notch, so they sit against it
-  and your status icons on the right stay untouched.
-- **Prefer the left?** Switch **Placement** to *Top left, right after the Apple menu* in Settings and
-  the tabs start at the left end of the bar instead, where the app's menus begin.
+  part apps fill with their menu titles. The strip owns all of that space, from just after the Apple menu
+  to just before the notch. With three or more tabs they fill it edge to edge; with fewer, **Alignment**
+  puts them in the *Middle* or at the *Right*, against the notch. Your status icons stay untouched.
 - **Need a menu under the tabs?** Right-click a tab and choose *Hide for 10 seconds*.
 
 The product name, bundle identifier and tagline live in one place:
@@ -82,7 +81,7 @@ More in [`assets/screenshots/`](assets/screenshots/): `strip-three.png`, `strip-
 - Clicks land at the very top pixel row: the panel extends 6pt above the screen edge.
 - Stays clear of status icons, and leaves the Apple menu and the app name usable.
 - Five tab orders, pinning, four label modes, two tab styles, two color themes (match the system or
-  Pure black), tab height, accent color, placement, width and alignment.
+  Pure black), tab height, accent color, width and alignment.
 - The focused window's tab is marked active, also while a helper window such as a Find bar has focus.
   Every tab label has at least 4.5:1 contrast in light, dark and Pure black (checked by unit tests).
 - Per-display on/off, hide on demand, hide in full screen, hide when only one window is open.
@@ -99,7 +98,7 @@ Finder or Spotlight (there is no Dock icon and no menu bar icon by design). Ever
 
 | Section | Options (default in bold) |
 | --- | --- |
-| Appearance | Tab style: **Square, flush with the top** or Rounded. Color theme: **Match the system** or Pure black. Tab height: 50 to 100% of the menu bar (**85%**). Same width for every tab: **on**, up to 220pt, sharing the room like browser tabs. Active tab: Underline, **Brighter fill**, Both. Accent: **system** or a custom color. Width: **Automatic (fit the tabs, up to a maximum)** or Fixed, 240 to 900pt (**560**). Alignment: **Center** or Left. Placement: **Middle of the menu bar** or Top left, right after the Apple menu. Live preview. |
+| Appearance | Tab style: **Square, flush with the top** or Rounded. Color theme: **Match the system** or Pure black. Tab height: 50 to 100% of the menu bar (**85%**). Same width for every tab: **on**, up to 220pt, sharing the room like browser tabs. Active tab: Underline, **Brighter fill**, Both. Accent: **system** or a custom color. Width: **Automatic (fit the tabs, up to a maximum)** or Fixed, 240 to 900pt (**560**). Alignment: **Middle** or Right. Three or more tabs fill the whole strip; on a notched screen the strip is everything between the Apple menu and the notch. Live preview. |
 | Tabs and order | Order (see below, **Automatic**). Pinned apps list. Labels: App name, Window title, **App name and title**, Icon only. **Shrink to icon-only when crowded**. Show up to 3 to 12 tabs (**8**); the rest go in a **+N** tab that opens a menu. Live preview. |
 | Displays | **Show on all displays**, or a toggle per connected display (stored by display UUID). |
 | Behaviour | Hide when only one window is open (off). **Hide in full-screen apps**. Include minimized windows (off; they show with a dimmed icon). **Ignore small helper windows** smaller than **100pt** (also drops windows the app marks with a non-standard AX subrole, such as Edge's Find bar). Hide-for durations (**10, 30, 60** seconds). |

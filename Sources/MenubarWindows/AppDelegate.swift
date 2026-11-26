@@ -183,7 +183,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
                       on: strip.screen,
                       width: CGFloat(settings.stripWidth),
                       alignment: settings.alignment,
-                      placement: settings.placement,
+                      coverAppleMenu: settings.coverAppleMenu,
                       hideInFullScreen: settings.hideInFullScreen
                   ) else {
                 strip.panel.orderOut(nil)
@@ -213,7 +213,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
             }
             strip.panel.content.update(models, overflow: overflow)
             let width = strip.panel.content.preferredWidth(maximum: region.frame.width)
-            let frame = region.panelFrame(contentWidth: width, mode: settings.widthMode)
+            let fills = StripFill.fillsRegion(tabCount: models.count)
+            let frame = region.panelFrame(contentWidth: width, mode: settings.widthMode, fills: fills)
             if strip.panel.frame != frame {
                 strip.panel.setFrame(frame, display: true)
             }

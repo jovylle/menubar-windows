@@ -116,13 +116,11 @@ final class PreviewBarView: NSView {
         let width = Settings.shared.widthMode == .automatic
             ? strip.preferredWidth(maximum: available)
             : min(available, CGFloat(Settings.shared.stripWidth) * available / 900)
-        // Same rules as MenuBarGeometry.freeStrip: Top left placement starts right after the Apple
-        // menu and ignores alignment.
+        // Same rules as MenuBarGeometry.freeStrip: Middle centers the strip, Right puts it at the end.
         let x: CGFloat
-        switch (Settings.shared.placement, Settings.shared.alignment) {
-        case (.left, _): x = apple.frame.maxX + 10
-        case (.middle, .center): x = (bounds.width - width) / 2
-        case (.middle, .left): x = 60
+        switch Settings.shared.alignment {
+        case .center: x = (bounds.width - width) / 2
+        case .right: x = bounds.width - 60 - width
         }
         let tabHeight = (Self.barHeight * CGFloat(Settings.shared.tabHeightPercent) / 100).rounded()
         strip.frame = NSRect(
