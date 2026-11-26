@@ -1,4 +1,11 @@
 #!/bin/sh
-# Blocks a commit that would include plaintext from private/ or the vault key.
+# Blocks a commit that would include plaintext from private/ or the vault key, then runs the fast
+# checks (rules sync, structure, boundaries, escape hatches). The full gate is scripts/check.sh.
+# Enable once per clone: git config core.hooksPath scripts/hooks
+set -e
 ROOT="$(git rev-parse --show-toplevel)"
-exec node "$ROOT/scripts/vault.mjs" check
+node "$ROOT/scripts/vault.mjs" check
+"$ROOT/scripts/check-rules.sh"
+"$ROOT/scripts/check-structure.sh"
+"$ROOT/scripts/check-boundaries.sh"
+"$ROOT/scripts/check-escape-hatches.sh"

@@ -1,0 +1,24 @@
+# Allowed top-level entries. scripts/check-structure.sh fails on anything else (ignored: .git, .build*,
+# and gitignored files such as build/, private/, .vault-key). Adding a line needs owner review.
+.agents
+.ai
+.claude
+.github
+.gitignore
+.kiro
+AGENTS.md
+CHANGELOG.md
+CLAUDE.md
+LICENSE
+Package.swift
+README.md
+Resources
+Sources
+Tests
+VERSION
+assets
+docs
+packaging
+private.enc
+scripts
+site

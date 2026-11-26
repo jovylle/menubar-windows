@@ -1,0 +1,3 @@
+# Existing forbidden imports in Sources/MenubarWindowsCore/, one "path: import X" per line.
+# scripts/check-boundaries.sh fails only on imports not listed here. This list may only shrink.
+# Empty on 2026-11-26: Core imports only Foundation and CoreGraphics.

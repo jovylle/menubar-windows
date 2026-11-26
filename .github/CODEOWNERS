@@ -1,0 +1,11 @@
+# Changes to checks, config, rules, Core and release assets need the owner's review.
+/Package.swift              @jovylle
+/scripts/                   @jovylle
+/.github/                   @jovylle
+/AGENTS.md                  @jovylle
+/CLAUDE.md                  @jovylle
+/docs/ARCHITECTURE.md       @jovylle
+/.ai/                       @jovylle
+/Sources/MenubarWindowsCore/ @jovylle
+/Resources/                 @jovylle
+/packaging/                 @jovylle
