@@ -1,0 +1,49 @@
+# Runs scripts/check.sh on every pull request and on pushes to main, and the audit weekly.
+# The anti-weakening gate needs the full history (fetch-depth 0) to find the base ref. A PR labelled
+# config-change sets ALLOW_CONFIG_CHANGE=1, which lets it edit checks and config (owner review still
+# applies through CODEOWNERS). Pushes to main compare with the previous main commit; config changes
+# there already passed review in their PR.
+name: check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    if: github.event_name != 'schedule'
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run scripts/check.sh
+        env:
+          CHECK_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+          ALLOW_CONFIG_CHANGE: ${{ (github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'config-change')) && '1' || '0' }}
+        run: scripts/check.sh
+
+  audit:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run scripts/audit.sh
+        run: scripts/audit.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-metrics
+          path: .ai/metrics.json

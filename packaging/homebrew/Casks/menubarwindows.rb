@@ -15,7 +15,7 @@ cask "menubarwindows" do
 
   # The build is arm64 only and needs macOS 13 or newer.
   depends_on arch: :arm64
-  depends_on macos: ">= :ventura"
+  depends_on macos: :ventura
 
   app "MenubarWindows.app"
 

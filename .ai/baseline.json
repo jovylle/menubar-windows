@@ -1,0 +1,20 @@
+{
+  "_comment": "Ratchet set 2026-11-26 from the current tree. Numbers may only go down. scripts/check-escape-hatches.sh and scripts/check-weakening.sh enforce it.",
+  "core.try_bang": 0,
+  "core.as_bang": 0,
+  "core.unsafe_bit_cast": 0,
+  "core.unchecked_sendable": 0,
+  "core.nonisolated_unsafe": 0,
+  "core.preconcurrency": 0,
+  "core.swiftlint_disable": 0,
+  "core.force_unwrap": 0,
+  "app.try_bang": 0,
+  "app.as_bang": 4,
+  "app.unsafe_bit_cast": 0,
+  "app.unchecked_sendable": 0,
+  "app.nonisolated_unsafe": 2,
+  "app.preconcurrency": 0,
+  "app.swiftlint_disable": 0,
+  "app.force_unwrap": 0,
+  "tests.skipped": 0
+}

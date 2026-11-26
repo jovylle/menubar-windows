@@ -9,3 +9,8 @@ build/
 # Private files: plaintext and the key never get committed (see scripts/vault.mjs)
 private/
 .vault-key
+
+# Check builds (scripts/check.sh) and the audit output
+.build-check/
+.build-check-test/
+.ai/metrics.json
