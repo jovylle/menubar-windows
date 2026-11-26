@@ -9,7 +9,8 @@ brew install --cask jovylle/tap/menubarwindows
 `jovylle/tap` means the GitHub repo `jovylle/homebrew-tap`. Homebrew maps the short name `tap` to
 `homebrew-tap` on its own.
 
-Nothing here is published yet. The repo is private, and Homebrew needs a public download URL.
+The tap is published at https://github.com/jovylle/homebrew-tap and the 0.1.0 release carries the dmg.
+The cask in this folder is the source of truth: copy it into the tap repo for each release.
 
 ## One-time setup (maker, when the product goes public)
 
