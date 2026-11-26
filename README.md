@@ -4,6 +4,12 @@ Your windows, as tabs in the empty middle of the menu bar.
 
 ![Six window tabs in the menu bar, with the right-click menu open below the active tab](assets/screenshots/hero.png)
 
+**Watch it work** (28 seconds, apps and windows are invented):
+
+![A full-screen window hides five others; the tabs in the menu bar next to the notch switch between them](assets/demo/menubarwindows-demo.gif)
+
+[Full-quality video (mp4)](https://github.com/jovylle/menubar-windows/releases/download/v0.1.0/MenubarWindows-demo.mp4)
+
 MenubarWindows is a small, free, open source macOS app (MIT) that draws a strip of window tabs **inside the
 menu bar**, one tab per window on that display. Click a tab to bring its window forward. The tabs reach
 the very top edge of the screen, so you can push the pointer up and click without aiming.
