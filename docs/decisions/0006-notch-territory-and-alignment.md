@@ -11,11 +11,16 @@ On a notched screen the old strip was a fixed-width block against the notch, wit
   The "Maximum width" setting does not limit it there. Other screens keep the configured width.
 - Three or more window tabs fill the whole region, and equal-width tabs ignore the widest-tab cap
   (`StripFill` in Core). With fewer tabs, alignment places them.
-- Alignment is Middle or Right only. The Placement setting is removed. A stored `left` falls back to Middle.
-- "Cover the Apple menu" (off by default, notched screens only) starts the region at the screen edge,
-  so the top-left corner selects the first tab.
+- Alignment on a notched screen is Left (hugs the Apple menu) or Middle (against the notch). Elsewhere it is
+  Left, Middle or Right. The Placement setting is removed. A stored `left` on a notched screen shows as Left;
+  the stored value is kept.
+- "Cover the Apple menu" (off by default) starts the strip at the screen edge instead of after the Apple
+  menu. It applies to Left on any screen and to the region's left edge on a notched screen, so the top-left
+  corner selects the first tab.
 
 ## Consequences
 - The Apple menu is hidden under the first tab when the cover option is on; "Hide for ..." reveals it.
-- The top-left placement is gone on screens without a notch.
-- Code: `Sources/MenubarWindowsCore/StripFill.swift`, `Sources/MenubarWindows/MenuBarGeometry.swift`.
+- Off a notch, Left puts the tabs right after the Apple menu (`StripPlacement.leftSpan`), clipped only by the
+  status icons. Middle and Right stay centered or at the end.
+- Code: `Sources/MenubarWindowsCore/StripFill.swift`, `Sources/MenubarWindowsCore/StripPlacement.swift`,
+  `Sources/MenubarWindows/MenuBarGeometry.swift`.
