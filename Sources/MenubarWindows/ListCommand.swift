@@ -16,7 +16,7 @@ enum ListCommand {
         print("Tab order: \(settings.order.title)")
         print("Labels: \(settings.label.title), max tabs \(settings.maxTabs), "
             + "width \(settings.widthMode.rawValue) \(Int(settings.stripWidth))pt, align \(settings.alignment.rawValue), "
-            + "placement \(settings.placement.rawValue), tab height \(Int(settings.tabHeightPercent))%")
+            + "tab height \(Int(settings.tabHeightPercent))%")
         print("Filters: minimized \(settings.includeMinimized ? "included" : "excluded"), "
             + "small helper windows \(settings.ignoreSmallWindows ? "ignored below \(Int(settings.smallWindowSize))pt" : "kept")")
         print("Frontmost app: \(NSWorkspace.shared.frontmostApplication?.localizedName ?? "none")")
@@ -38,7 +38,7 @@ enum ListCommand {
                 on: screen,
                 width: CGFloat(settings.stripWidth),
                 alignment: settings.alignment,
-                placement: settings.placement,
+                coverAppleMenu: settings.coverAppleMenu,
                 hideInFullScreen: settings.hideInFullScreen
             ) {
                 print("  strip region: \(describe(strip.frame)), \(strip.leftSource)")

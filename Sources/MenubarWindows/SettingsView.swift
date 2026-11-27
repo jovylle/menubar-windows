@@ -152,13 +152,6 @@ private struct AppearancePane: View {
             }
 
             Section("Strip") {
-                Picker("Placement", selection: $settings.placement) {
-                    ForEach(StripPlacement.allCases) { Text($0.title).tag($0) }
-                }
-                .pickerStyle(.radioGroup)
-                Help("Top left puts the tabs right after the Apple menu, on top of the app's menu titles. "
-                    + "Right-click a tab and choose Hide for to reach those menus.")
-
                 HStack {
                     Slider(value: $settings.tabHeightPercent, in: Settings.tabHeightRange, step: 5) {
                         Text("Tab height")
@@ -182,17 +175,20 @@ private struct AppearancePane: View {
                         .frame(width: 60, alignment: .trailing)
                 }
                 Help(settings.widthMode == .automatic
-                    ? "The strip grows with your tabs up to this width, and leaves the rest of the menu bar clickable."
+                    ? "The strip grows with your tabs up to this width, and leaves the rest of the menu bar clickable. "
+                        + "On a screen with a notch it may use all the space between the Apple menu and the notch."
                     : "The strip always takes this width. Empty space in it does not pass clicks to the menu bar.")
 
                 Picker("Alignment", selection: $settings.alignment) {
                     ForEach(StripAlignment.allCases) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                .disabled(settings.placement == .left)
-                Help(settings.placement == .left
-                    ? "Top left placement always starts the tabs after the Apple menu."
-                    : "Center keeps the tabs in the middle of the bar, or next to the notch on screens that have one.")
+                Help("With three or more tabs the strip fills the whole space. With fewer, Middle centers them and "
+                    + "Right puts them at the end, next to the notch on screens that have one.")
+
+                Toggle("Cover the Apple menu (screens with a notch)", isOn: $settings.coverAppleMenu)
+                Help("The first tab starts at the very left edge, so pushing the pointer into the top left corner "
+                    + "selects it. The Apple menu is then hidden underneath; right-click a tab and choose Hide for to reach it.")
             }
         }
         .formStyle(.grouped)
