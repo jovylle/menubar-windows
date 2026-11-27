@@ -13,6 +13,8 @@ on:
 permissions:
   contents: write
 
+# One run at a time, so tap pushes never overlap. GitHub keeps only the newest pending run, so a
+# commit merged while another is waiting may be skipped; the newest main always gets a beta.
 concurrency:
   group: beta
   cancel-in-progress: false
@@ -29,6 +31,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
+      - name: Check the tap token first
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+        run: test -n "$TAP_TOKEN" || { echo "TAP_TOKEN secret is missing" >&2; exit 1; }
       - name: Build the dmg
         run: |
           set -eu
@@ -48,9 +54,16 @@ jobs:
       - name: Publish the pre-release
         run: |
           set -eu
-          gh release create "$TAG" "$DMG" --prerelease --target "$SHA" \
-            --title "MenubarWindows $BETA" \
-            --notes "Beta build of $SHA. Install: brew install --cask jovylle/tap/menubarwindows@beta"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # A rerun after a tap failure: keep the published bytes, never replace them.
+            rm -f "$DMG"
+            gh release download "$TAG" --pattern "$(basename "$DMG")" --dir "$(dirname "$DMG")"
+          else
+            ( cd "$(dirname "$DMG")" && shasum -a 256 "$(basename "$DMG")" > "$(basename "$DMG").sha256" )
+            gh release create "$TAG" "$DMG" "$DMG.sha256" --prerelease --target "$SHA" \
+              --title "MenubarWindows $BETA" \
+              --notes "Beta build of $SHA. Install: brew install --cask jovylle/tap/menubarwindows@beta"
+          fi
       - name: Update the beta cask in the tap
         env:
           TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
