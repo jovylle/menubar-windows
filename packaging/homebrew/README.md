@@ -23,7 +23,26 @@ The cask in this folder is the source of truth: copy it into the tap repo for ea
    Do not add an `xattr` workaround to the cask. Homebrew's maintainers reject that for casks
    submitted to the main repository, and it hides a real warning from users.
 
-## Each release
+## Beta channel and promotion
+
+Every green `check` on `main` runs `.github/workflows/beta.yml`. It builds the dmg once, publishes it as
+the GitHub pre-release `v<VERSION>-beta.<run>` and updates `menubarwindows@beta` in the tap:
+
+```
+brew install --cask jovylle/tap/menubarwindows@beta
+brew upgrade --cask menubarwindows@beta
+```
+
+To go live, run the `promote` workflow (Actions tab) with a beta tag, for example `v0.1.1-beta.7`. It
+re-publishes that same dmg as `v0.1.1` and updates the live cask. Nothing is rebuilt.
+
+- Bump `VERSION` when you start the next release. The beta number comes from the workflow run.
+- Both workflows need the repo secret `TAP_TOKEN`: a fine-grained token with Contents read and write on
+  `jovylle/homebrew-tap` only.
+- The cask files in this folder are templates. The workflows rewrite `version` and `sha256` and push
+  to the tap, which holds the current versions.
+
+## Each release (manual, without the workflows)
 
 ```
 scripts/release.sh            # builds the app and dmg, rewrites version and sha256 in the cask

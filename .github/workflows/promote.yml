@@ -1,0 +1,74 @@
+# Promotes a beta to live. Run it by hand with the beta tag, for example v0.1.1-beta.7.
+# It downloads the beta's dmg, checks the sha256, re-publishes the same bytes as v<VERSION> and
+# points the tap's menubarwindows cask at it. Nothing is rebuilt.
+# Needs the repo secret TAP_TOKEN (see beta.yml).
+name: promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      beta_tag:
+        description: "Beta tag to promote, for example v0.1.1-beta.7"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: macos-15
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BETA_TAG: ${{ inputs.beta_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Promote
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+        run: |
+          set -eu
+          test -n "$TAP_TOKEN" || { echo "TAP_TOKEN secret is missing" >&2; exit 1; }
+          case "$BETA_TAG" in
+            v[0-9]*.[0-9]*.[0-9]*-beta.[0-9]*) ;;
+            *) echo "Not a beta tag: $BETA_TAG" >&2; exit 1 ;;
+          esac
+          LIVE="${BETA_TAG%-beta.*}"          # v0.1.1
+          VERSION="${LIVE#v}"                 # 0.1.1
+          mkdir dl
+          gh release download "$BETA_TAG" --pattern '*.dmg' --pattern '*.dmg.sha256' --dir dl
+          BETA_DMG="$(ls dl/*.dmg)"
+          # The checksum recorded when the beta was published, not one computed now.
+          WANT="$(awk '{print $1}' "$BETA_DMG.sha256")"
+          SUM="$(shasum -a 256 "$BETA_DMG" | awk '{print $1}')"
+          test -n "$WANT" && test "$SUM" = "$WANT" || { echo "beta dmg does not match its recorded sha256" >&2; exit 1; }
+          LIVE_DMG="dl/MenubarWindows-$VERSION.dmg"
+          cp "$BETA_DMG" "$LIVE_DMG"
+          if gh release view "$LIVE" >/dev/null 2>&1; then
+            # A rerun after a tap failure: resume only if the live asset is the same bytes.
+            mkdir live
+            gh release download "$LIVE" --pattern '*.dmg' --dir live
+            test "$(shasum -a 256 live/*.dmg | awk '{print $1}')" = "$SUM" \
+              || { echo "$LIVE exists with different bytes" >&2; exit 1; }
+          else
+            SHA="$(gh release view "$BETA_TAG" --json targetCommitish --jq .targetCommitish)"
+            gh release create "$LIVE" "$LIVE_DMG" --latest --target "$SHA" \
+              --title "MenubarWindows $VERSION" \
+              --notes "Promoted from $BETA_TAG (same dmg, sha256 $SUM). Install: brew install --cask jovylle/tap/menubarwindows"
+          fi
+          git clone --depth 1 "https://x-access-token:$TAP_TOKEN@github.com/jovylle/homebrew-tap.git" tap
+          mkdir -p tap/Casks
+          sed -e "s/^  version \".*\"/  version \"$VERSION\"/" \
+              -e "s/^  sha256 \".*\"/  sha256 \"$SUM\"/" \
+              packaging/homebrew/Casks/menubarwindows.rb > tap/Casks/menubarwindows.rb
+          cd tap
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git add Casks/menubarwindows.rb
+          git commit -m "menubarwindows $VERSION (promoted from $BETA_TAG)"
+          for i in 1 2 3; do git push && exit 0; git pull --rebase; done
+          exit 1
