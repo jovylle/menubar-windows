@@ -13,14 +13,14 @@
 // - AX reports menu titles for one display only. Their offset is measured on that owner display and
 //   translated to the requested screen (every display draws the titles at the same offset).
 // - On notched screens (auxiliaryTopLeftArea) the region is everything between the Apple menu
-//   (appleMenuInset) and the notch. Elsewhere it is the configured strip width, in the middle of the bar
-//   (minimumLeftInset keeps the Apple menu and app name clear). The frontmost app's menus are ignored
-//   on purpose; "Hide for ..." reaches them.
-// - "Cover the Apple menu" moves the left edge to the screen edge. It only matters where the strip
-//   hugs the left (Left on a notched screen); Middle and Right keep their place.
-// - Alignment inside the region comes from StripPlacement (Core). Left on a notched screen hugs the
-//   leading edge; otherwise Middle centers and Right/Middle-on-notch hugs the trailing edge. Three or
-//   more tabs fill the whole region.
+//   (appleMenuInset) and the notch. Elsewhere it is the configured strip width: Left starts right after
+//   the Apple menu, and Middle and Right sit in the middle of the bar (minimumLeftInset keeps the Apple
+//   menu and app name clear). The frontmost app's menus are ignored on purpose; "Hide for ..." reaches them.
+// - "Cover the Apple menu" moves the left edge to the screen edge. It applies to the region's left edge on
+//   a notched screen and to Left elsewhere. Middle and Right off a notch keep their place.
+// - Alignment inside the region comes from StripPlacement (Core). Left hugs the leading edge on every
+//   screen (on a notched screen the center option is the one titled Left). Middle centers off a notch;
+//   Right, and Middle on a notch, hug the trailing edge. Three or more tabs fill the whole region.
 // - Status icons are windows at level 25 (status bar) inside the bar band. The region's right edge is
 //   pulled back to stay clear of them, sliding left to keep the width.
 // - The panel extends topOverscan points ABOVE the screen's top edge, so a click with the pointer
@@ -40,9 +40,10 @@ enum StripLayout {
     /// The panel extends this far above the top edge of the screen (a negative top margin), so a click
     /// with the pointer pushed against the very top still lands on a tab.
     static let topOverscan: CGFloat = 6
-    /// The strip never starts closer than this to the left screen edge (keeps the Apple menu usable).
+    /// Middle and Right never start closer than this to the left screen edge (keeps the Apple menu usable).
     static let minimumLeftInset: CGFloat = 130
-    /// On a notched screen the strip starts this far from the screen edge, which keeps the Apple menu clear.
+    /// Left starts this far from the screen edge (on a notched or any other screen), which keeps the Apple
+    /// menu clear. Cover the Apple menu starts it at the edge instead.
     static let appleMenuInset: CGFloat = 42
     /// Gap between the strip and the leftmost status icon.
     static let statusGap: CGFloat = 12
@@ -193,10 +194,10 @@ enum MenuBarGeometry {
     /// - Parameters:
     ///   - width: the strip width setting (the maximum in Automatic width mode). Ignored on a notched
     ///     screen, where the strip may use everything between the Apple menu and the notch.
-    ///   - alignment: right anchors a narrower panel to the region's right edge; Left (center on a notched
-    ///     screen) hugs the Apple menu side; Middle (center elsewhere) centers it. See StripPlacement.
-    ///   - coverAppleMenu: on a notched screen, start at the very left edge, over the Apple menu, so the
-    ///     pointer thrown into the top left corner lands on the first tab.
+    ///   - alignment: right anchors a narrower panel to the region's right edge; Left (the center option on a
+    ///     notched screen) hugs the Apple menu side on any screen; Middle centers it off a notch. See StripPlacement.
+    ///   - coverAppleMenu: start at the very left edge, over the Apple menu, so the pointer thrown into the
+    ///     top left corner lands on the first tab. Applies to a notched screen and to Left.
     ///   - hideInFullScreen: hide while the frontmost window is full screen.
     static func freeStrip(
         on screen: NSScreen,
@@ -214,21 +215,36 @@ enum MenuBarGeometry {
         guard reservedMenuBarHeight(screen) > 0 || axMaxX != nil else { return nil }
 
         // On a notched screen the territory is the whole bar between the Apple menu and the notch.
-        // On other screens it is `width` wide, in the middle of the bar, clear of the status icons.
-        var hi: CGFloat
-        var lo: CGFloat
+        // Elsewhere it is `width` wide: Left starts next to the Apple menu and only gives way to the status
+        // icons on its right; Middle and Right are a block centered in the bar, clear of the status icons.
+        let lo: CGFloat
+        let hi: CGFloat
         if let aux = screen.auxiliaryTopLeftArea {
             lo = screen.frame.minX + (coverAppleMenu ? 0 : StripLayout.appleMenuInset)
             hi = aux.maxX - StripLayout.notchGap
+        } else if alignment == .left {
+            let span = StripPlacement.leftSpan(
+                screenMinX: screen.frame.minX,
+                width: width,
+                appleMenuInset: StripLayout.appleMenuInset,
+                coverAppleMenu: coverAppleMenu,
+                statusMinX: statusItemsMinX(on: screen),
+                statusGap: StripLayout.statusGap
+            )
+            lo = span.lo
+            hi = span.hi
         } else {
-            lo = max(screen.frame.minX + StripLayout.minimumLeftInset, screen.frame.midX - width / 2)
-            hi = screen.frame.midX + width / 2
+            let minLo = screen.frame.minX + StripLayout.minimumLeftInset
+            var centeredLo = max(minLo, screen.frame.midX - width / 2)
+            var centeredHi = screen.frame.midX + width / 2
             // Never overlap the right-hand status icons: pull the right edge back and slide left to
             // keep the width.
             if let statusMinX = statusItemsMinX(on: screen) {
-                hi = min(hi, statusMinX - StripLayout.statusGap)
-                lo = max(screen.frame.minX + StripLayout.minimumLeftInset, min(lo, hi - width))
+                centeredHi = min(centeredHi, statusMinX - StripLayout.statusGap)
+                centeredLo = max(minLo, min(centeredLo, centeredHi - width))
             }
+            lo = centeredLo
+            hi = centeredHi
         }
         // The frontmost app's menu titles are ignored on purpose: the strip may sit on top of them.
         // Right-click a tab and choose "Hide for ..." to reach the menus underneath. Only the Apple
@@ -246,7 +262,8 @@ enum MenuBarGeometry {
         )
         let anchor = StripPlacement.edge(
             rightChoice: alignment == .right,
-            onNotchedScreen: screen.auxiliaryTopLeftArea != nil
+            onNotchedScreen: screen.auxiliaryTopLeftArea != nil,
+            leftChoice: alignment == .left
         )
         return FreeStrip(
             frame: frame,

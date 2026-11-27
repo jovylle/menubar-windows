@@ -135,6 +135,15 @@ private struct AppearancePane: View {
         NSScreen.screens.contains { $0.auxiliaryTopLeftArea != nil }
     }
 
+    /// A stored Left shows as the notched center option (titled Left) on a notched screen, so the picker
+    /// keeps a selection there. Display only: the stored value is not rewritten.
+    private var alignmentSelection: Binding<StripAlignment> {
+        Binding(
+            get: { onNotchedScreen && settings.alignment == .left ? .center : settings.alignment },
+            set: { settings.alignment = $0 }
+        )
+    }
+
     private var accentBinding: Binding<CGColor> {
         Binding(
             get: { settings.accentColor.cgColor },
@@ -238,23 +247,23 @@ private struct AppearancePane: View {
                     : "The strip always takes this width. Empty space in it does not pass clicks to the menu bar.")
 
                 Resettable(settings, .alignment) {
-                    Picker("Alignment", selection: $settings.alignment) {
-                        ForEach(StripAlignment.allCases) { Text($0.title(onNotchedScreen: onNotchedScreen)).tag($0) }
+                    Picker("Alignment", selection: alignmentSelection) {
+                        ForEach(StripAlignment.choices(onNotchedScreen: onNotchedScreen)) { Text($0.title(onNotchedScreen: onNotchedScreen)).tag($0) }
                     }
                     .pickerStyle(.segmented)
                 }
                 Help(onNotchedScreen
                     ? "With three or more tabs the strip fills the whole space. With fewer, Left starts them right after "
                         + "the Apple menu, and Middle puts them next to the notch."
-                    : "With three or more tabs the strip fills the whole space. With fewer, Middle centers them and "
-                        + "Right puts them at the end.")
+                    : "With three or more tabs the strip fills the whole space. With fewer, Left starts them right after "
+                        + "the Apple menu, Middle centers them and Right puts them at the end.")
 
                 Resettable(settings, .coverAppleMenu) {
-                    Toggle("Cover the Apple menu (screens with a notch)", isOn: $settings.coverAppleMenu)
+                    Toggle("Cover the Apple menu", isOn: $settings.coverAppleMenu)
                 }
-                Help("With Left on a screen with a notch, the first tab starts at the very left edge, so pushing the pointer "
-                    + "into the top left corner selects it. The Apple menu is then hidden underneath; right-click a tab and "
-                    + "choose Hide for to reach it.")
+                Help("With Left, the first tab starts at the very left edge, so pushing the pointer into the top left "
+                    + "corner selects it. The Apple menu is then hidden underneath; right-click a tab and choose "
+                    + "Hide for ... to reach it.")
             }
         }
         .formStyle(.grouped)

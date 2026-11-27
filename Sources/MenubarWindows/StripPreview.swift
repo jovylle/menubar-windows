@@ -123,7 +123,8 @@ final class PreviewBarView: NSView {
         let notched = NSScreen.screens.contains { $0.auxiliaryTopLeftArea != nil }
         let edge = StripPlacement.edge(
             rightChoice: Settings.shared.alignment == .right,
-            onNotchedScreen: notched
+            onNotchedScreen: notched,
+            leftChoice: Settings.shared.alignment == .left
         )
         let x: CGFloat
         switch edge {
