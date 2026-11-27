@@ -1,0 +1,72 @@
+# Publishes a beta after every green check on main: builds the dmg once, attaches it to a GitHub
+# pre-release (v<VERSION>-beta.<run>) and points the tap's menubarwindows@beta cask at it.
+# Promote a beta to live with the "promote" workflow; it re-publishes these same bytes.
+# Needs the repo secret TAP_TOKEN: a fine-grained token with Contents write on jovylle/homebrew-tap.
+name: beta
+
+on:
+  workflow_run:
+    workflows: [check]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: beta
+  cancel-in-progress: false
+
+jobs:
+  beta:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - name: Build the dmg
+        run: |
+          set -eu
+          VERSION="$(tr -d ' \n' < VERSION)"
+          TAG="v$VERSION-beta.$GITHUB_RUN_NUMBER"
+          # CFBundleVersion carries the beta number; the app still reports $VERSION, so the
+          # same bytes can be promoted to live unchanged.
+          BUILD_NUMBER="$GITHUB_RUN_NUMBER" scripts/build-app.sh
+          scripts/make-dmg.sh
+          cp "build/MenubarWindows-$VERSION.dmg" "build/MenubarWindows-$VERSION-beta.$GITHUB_RUN_NUMBER.dmg"
+          {
+            echo "VERSION=$VERSION"
+            echo "TAG=$TAG"
+            echo "BETA=$VERSION-beta.$GITHUB_RUN_NUMBER"
+            echo "DMG=build/MenubarWindows-$VERSION-beta.$GITHUB_RUN_NUMBER.dmg"
+          } >> "$GITHUB_ENV"
+      - name: Publish the pre-release
+        run: |
+          set -eu
+          gh release create "$TAG" "$DMG" --prerelease --target "$SHA" \
+            --title "MenubarWindows $BETA" \
+            --notes "Beta build of $SHA. Install: brew install --cask jovylle/tap/menubarwindows@beta"
+      - name: Update the beta cask in the tap
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+        run: |
+          set -eu
+          test -n "$TAP_TOKEN" || { echo "TAP_TOKEN secret is missing" >&2; exit 1; }
+          SUM="$(shasum -a 256 "$DMG" | awk '{print $1}')"
+          git clone --depth 1 "https://x-access-token:$TAP_TOKEN@github.com/jovylle/homebrew-tap.git" tap
+          mkdir -p tap/Casks
+          sed -e "s/^  version \".*\"/  version \"$BETA\"/" \
+              -e "s/^  sha256 \".*\"/  sha256 \"$SUM\"/" \
+              packaging/homebrew/Casks/menubarwindows@beta.rb > tap/Casks/menubarwindows@beta.rb
+          cd tap
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git add Casks/menubarwindows@beta.rb
+          git commit -m "menubarwindows@beta $BETA"
+          for i in 1 2 3; do git push && exit 0; git pull --rebase; done
+          exit 1
