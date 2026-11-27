@@ -131,6 +131,10 @@ private struct PreviewSection: View {
 private struct AppearancePane: View {
     @ObservedObject var settings: Settings
 
+    private var onNotchedScreen: Bool {
+        NSScreen.screens.contains { $0.auxiliaryTopLeftArea != nil }
+    }
+
     private var accentBinding: Binding<CGColor> {
         Binding(
             get: { settings.accentColor.cgColor },
@@ -235,12 +239,15 @@ private struct AppearancePane: View {
 
                 Resettable(settings, .alignment) {
                     Picker("Alignment", selection: $settings.alignment) {
-                        ForEach(StripAlignment.allCases) { Text($0.title).tag($0) }
+                        ForEach(StripAlignment.allCases) { Text($0.title(onNotchedScreen: onNotchedScreen)).tag($0) }
                     }
                     .pickerStyle(.segmented)
                 }
-                Help("With three or more tabs the strip fills the whole space. With fewer, Middle centers them and "
-                    + "Right puts them at the end, next to the notch on screens that have one.")
+                Help(onNotchedScreen
+                    ? "With three or more tabs the strip fills the whole space. With fewer, Left centers them between "
+                        + "the Apple menu and the notch, and Middle puts them next to the notch."
+                    : "With three or more tabs the strip fills the whole space. With fewer, Middle centers them and "
+                        + "Right puts them at the end.")
 
                 Resettable(settings, .coverAppleMenu) {
                     Toggle("Cover the Apple menu (screens with a notch)", isOn: $settings.coverAppleMenu)
