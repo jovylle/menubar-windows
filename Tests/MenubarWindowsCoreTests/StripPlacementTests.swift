@@ -21,6 +21,11 @@ struct StripPlacementTests {
         #expect(StripPlacement.edge(rightChoice: true, onNotchedScreen: false) == .trailing)
     }
 
+    @Test("Left on a screen without a notch hugs the leading edge")
+    func leftWithoutNotch() {
+        #expect(StripPlacement.edge(rightChoice: false, onNotchedScreen: false, leftChoice: true) == .leading)
+    }
+
     @Test("Middle on a notched screen sits against the notch")
     func middleOnNotch() {
         #expect(StripPlacement.edge(rightChoice: true, onNotchedScreen: true) == .trailing)

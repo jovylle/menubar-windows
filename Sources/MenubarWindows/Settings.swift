@@ -76,15 +76,24 @@ enum StripWidthMode: String, CaseIterable, Identifiable {
 }
 
 enum StripAlignment: String, CaseIterable, Identifiable {
+    /// Only offered off a notch. On a notched screen the center option is already called Left.
+    case left
     case center
     case right
     var id: String { rawValue }
     var title: String { title(onNotchedScreen: false) }
 
+    /// The options the picker offers: a notched screen has Left (center) and Middle (right); others have
+    /// Left, Middle and Right.
+    static func choices(onNotchedScreen notched: Bool) -> [StripAlignment] {
+        notched ? [.center, .right] : [.left, .center, .right]
+    }
+
     /// On a notched screen the strip's region is the left part of the bar. Left hugs the Apple menu side
     /// and Middle sits against the notch. Off a notch, Middle centers and Right hugs the trailing edge.
     func title(onNotchedScreen notched: Bool) -> String {
         switch self {
+        case .left: return "Left"
         case .center: return notched ? "Left" : "Middle"
         case .right: return notched ? "Middle" : "Right"
         }

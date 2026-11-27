@@ -497,6 +497,7 @@ final class StripContentView: NSView {
 
         var x: CGFloat
         switch options.alignment {
+        case .left: x = 0
         case .center: x = max(0, (width - contentWidth) / 2)
         case .right: x = max(0, width - contentWidth)
         }

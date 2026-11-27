@@ -239,15 +239,15 @@ private struct AppearancePane: View {
 
                 Resettable(settings, .alignment) {
                     Picker("Alignment", selection: $settings.alignment) {
-                        ForEach(StripAlignment.allCases) { Text($0.title(onNotchedScreen: onNotchedScreen)).tag($0) }
+                        ForEach(StripAlignment.choices(onNotchedScreen: onNotchedScreen)) { Text($0.title(onNotchedScreen: onNotchedScreen)).tag($0) }
                     }
                     .pickerStyle(.segmented)
                 }
                 Help(onNotchedScreen
                     ? "With three or more tabs the strip fills the whole space. With fewer, Left starts them right after "
                         + "the Apple menu, and Middle puts them next to the notch."
-                    : "With three or more tabs the strip fills the whole space. With fewer, Middle centers them and "
-                        + "Right puts them at the end.")
+                    : "With three or more tabs the strip fills the whole space. With fewer, Left starts them right after "
+                        + "the Apple menu, Middle centers them and Right puts them at the end.")
 
                 Resettable(settings, .coverAppleMenu) {
                     Toggle("Cover the Apple menu (screens with a notch)", isOn: $settings.coverAppleMenu)

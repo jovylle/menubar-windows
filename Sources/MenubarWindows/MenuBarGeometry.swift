@@ -221,13 +221,16 @@ enum MenuBarGeometry {
             lo = screen.frame.minX + (coverAppleMenu ? 0 : StripLayout.appleMenuInset)
             hi = aux.maxX - StripLayout.notchGap
         } else {
-            lo = max(screen.frame.minX + StripLayout.minimumLeftInset, screen.frame.midX - width / 2)
+            // Left starts next to the Apple menu and spans to the same right edge; the other choices keep
+            // the centered region.
+            let minLo = screen.frame.minX + (alignment == .left ? StripLayout.appleMenuInset : StripLayout.minimumLeftInset)
+            lo = alignment == .left ? minLo : max(minLo, screen.frame.midX - width / 2)
             hi = screen.frame.midX + width / 2
             // Never overlap the right-hand status icons: pull the right edge back and slide left to
             // keep the width.
             if let statusMinX = statusItemsMinX(on: screen) {
                 hi = min(hi, statusMinX - StripLayout.statusGap)
-                lo = max(screen.frame.minX + StripLayout.minimumLeftInset, min(lo, hi - width))
+                lo = alignment == .left ? minLo : max(minLo, min(lo, hi - width))
             }
         }
         // The frontmost app's menu titles are ignored on purpose: the strip may sit on top of them.
@@ -246,7 +249,8 @@ enum MenuBarGeometry {
         )
         let anchor = StripPlacement.edge(
             rightChoice: alignment == .right,
-            onNotchedScreen: screen.auxiliaryTopLeftArea != nil
+            onNotchedScreen: screen.auxiliaryTopLeftArea != nil,
+            leftChoice: alignment == .left
         )
         return FreeStrip(
             frame: frame,
