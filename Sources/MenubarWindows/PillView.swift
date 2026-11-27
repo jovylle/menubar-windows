@@ -9,6 +9,10 @@
 // - Right-click is not handled here. It falls through the responder chain to the strip's menu, which
 //   finds the pill under the pointer itself.
 // - Middle-click (button 2) closes the window through onMiddleClick.
+// - A left click fires on mouse-up, not mouse-down, so a press that turns into a drag (reorder) never
+//   focuses a window. A press that moves less than dragThreshold points is still a click.
+// - Dragging only works when isDraggable is set (real windows, at least two tabs, a strip with actions).
+//   The strip moves the pill with the pointer; this view only reports the phases and the window point.
 // - Square style is flush with the top of the screen (full bar height): flared top, rounded bottom corners
 //   (an upside-down browser tab, drawn by tabPath as a layer mask). Rounded style
 //   is inset a few points and keeps a corner radius; the column above it is still clickable because the
@@ -43,6 +47,15 @@ struct PillAppearance: Equatable {
         let color = rgb.map { String(format: "%.3f,%.3f,%.3f", $0.redComponent, $0.greenComponent, $0.blueComponent) } ?? "?"
         return "\(style.rawValue)|\(theme.rawValue)|\(indicator.rawValue)|\(color)|\(inWindow)"
     }
+}
+
+/// Phases of a drag-to-reorder gesture, reported to the strip.
+enum PillDragPhase {
+    /// The pointer moved past the threshold. The press is now a drag, not a click.
+    case began
+    case changed
+    /// Mouse-up after a drag. No click is sent.
+    case ended
 }
 
 struct PillModel {
@@ -87,6 +100,15 @@ final class PillView: NSView {
     private let appearanceStyle: PillAppearance
     private let onClick: () -> Void
     private let onMiddleClick: (() -> Void)?
+    /// Pointer position (window coordinates) where the left button went down. Nil when no press is active.
+    private var pressPoint: NSPoint?
+    private var isDragging = false
+    /// Horizontal distance the pointer must travel before a press counts as a drag.
+    private static let dragThreshold: CGFloat = 4
+    /// Set by the strip. Real windows only, and only when reordering is possible.
+    var isDraggable = false
+    /// Set by the strip. Receives the drag phases and the pointer in window coordinates.
+    var onDrag: ((PillView, PillDragPhase, NSPoint) -> Void)?
     let model: PillModel
     /// Width this pill would take at its label's natural length.
     let naturalWidth: CGFloat
@@ -286,7 +308,32 @@ final class PillView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        onClick()
+        pressPoint = event.locationInWindow
+        isDragging = false
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard isDraggable, let start = pressPoint else { return }
+        let point = event.locationInWindow
+        if !isDragging {
+            guard abs(point.x - start.x) >= Self.dragThreshold else { return }
+            isDragging = true
+            onDrag?(self, .began, point)
+        }
+        onDrag?(self, .changed, point)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        defer {
+            pressPoint = nil
+            isDragging = false
+        }
+        guard pressPoint != nil else { return }
+        if isDragging {
+            onDrag?(self, .ended, event.locationInWindow)
+        } else {
+            onClick()
+        }
     }
 
     override func otherMouseDown(with event: NSEvent) {
