@@ -16,6 +16,6 @@ available as a beta, and a deliberate step to make a tested beta live.
 - The tap is written with the fine-grained secret `TAP_TOKEN` (Contents write on the tap repo only).
 
 ## Consequences
-- Builds stay ad-hoc signed and not notarized; macOS may ask for Accessibility again after an update.
+- Builds are signed with one self-signed certificate (secrets `MW_SIGN_P12`, `MW_SIGN_P12_PASSWORD`) and not notarized. The same certificate on every build keeps the Accessibility grant across updates. Replacing the certificate asks for the grant again. Local `scripts/build-app.sh` runs without `MW_SIGN_IDENTITY` stay ad-hoc signed.
 - `VERSION` must be bumped before the first beta of a new release.
 - The cask files in `packaging/homebrew/Casks/` are templates; the tap holds the current values.

@@ -1,10 +1,14 @@
 #!/bin/sh
-# Builds build/<App>.app: release binary, Info.plist, icon, ad-hoc signature.
+# Builds build/<App>.app: release binary, Info.plist, icon, code signature.
 # Name, bundle id and tagline come from Sources/MenubarWindows/AppInfo.swift (via app-info.sh),
 # the version from VERSION.
 #
-# The ad-hoc signature (`codesign -s -`) is enough to run the app on this Mac. Distributing it to
-# other Macs needs a Developer ID certificate and notarization; see "Release checklist" in README.md.
+# Without MW_SIGN_IDENTITY the signature is ad-hoc (`codesign -s -`): enough to run on this Mac, but
+# macOS ties the Accessibility grant to the exact binary, so every new build asks for it again.
+# With MW_SIGN_IDENTITY (a certificate name or hash; CI sets it from the MW_SIGN_P12 secret) every
+# build carries the same certificate, so the grant survives updates. MW_SIGN_KEYCHAIN optionally
+# names the keychain that holds it. Distributing to other Macs without Gatekeeper warnings needs a
+# Developer ID certificate and notarization; see "Release checklist" in README.md.
 set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 . "$ROOT/scripts/app-info.sh"
@@ -60,7 +64,16 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 PLIST
 plutil -lint "$APP/Contents/Info.plist" >/dev/null
 
-# Ad-hoc signature, local use only.
-codesign --force --deep -s - "$APP"
+if [ -n "${MW_SIGN_IDENTITY:-}" ]; then
+    if [ -n "${MW_SIGN_KEYCHAIN:-}" ]; then
+        codesign --force --deep -s "$MW_SIGN_IDENTITY" --keychain "$MW_SIGN_KEYCHAIN" "$APP"
+    else
+        codesign --force --deep -s "$MW_SIGN_IDENTITY" "$APP"
+    fi
+    SIGNED="signed with $MW_SIGN_IDENTITY"
+else
+    codesign --force --deep -s - "$APP"
+    SIGNED="ad-hoc signed"
+fi
 codesign --verify --deep --strict "$APP"
-echo "Built $APP ($APP_NAME $VERSION, $BUNDLE_ID), ad-hoc signed."
+echo "Built $APP ($APP_NAME $VERSION, $BUNDLE_ID), $SIGNED."

@@ -275,7 +275,8 @@ in the app's own `UserDefaults`.
 
 ## Release checklist (not done yet)
 
-The beta build is ad-hoc signed, which only runs without warnings on the Mac that built it. Distribution
+The beta build is signed with a self-signed certificate (repo secrets `MW_SIGN_P12` and `MW_SIGN_P12_PASSWORD`), so the
+Accessibility grant survives updates. It still only runs without warnings on the Mac that built it. Distribution
 to other Macs needs an Apple Developer ID certificate and notarization. These commands are documented
 here and were **not** run:
 
