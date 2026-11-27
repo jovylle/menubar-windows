@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- Reset arrow after each setting: restores that one setting to its default, and is disabled while the
+  setting is already at its default. "Reset all to defaults" (About) asks first and keeps pinned apps.
 - Drag a tab in the strip to move it. Dragging switches the tab order to a new mode, Custom (drag tabs
   to arrange), which keeps the order you made until the app quits. A plain click still focuses the window.
 

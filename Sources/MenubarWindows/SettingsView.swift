@@ -10,6 +10,10 @@
 // - Hide durations are typed as text ("10, 30, 60") and only saved when they parse.
 // - `-mw.settingsPane <name>` picks the first pane (SettingsPane raw values). Demo mode shows invented
 //   displays and pinned app names (DemoMode), never the real ones.
+// - Each setting control is wrapped in `Resettable`: a reset arrow that calls Settings.reset and is
+//   disabled at the default. The defaults come only from Settings.swift, never from this file. Pinned
+//   apps have no reset arrow (they have Unpin) and launch at login is system state, not a setting.
+// - "Reset all to defaults" lives on About and asks first (confirmation dialog). It keeps pinned apps.
 
 import AppKit
 import MenubarWindowsCore
@@ -77,6 +81,36 @@ private struct Help: View {
     }
 }
 
+/// A setting's control with a small reset arrow after it. The arrow is disabled while the setting is at its
+/// default, and pressing it restores only that setting.
+private struct Resettable<Content: View>: View {
+    @ObservedObject var settings: Settings
+    let setting: SettingID
+    let content: Content
+
+    init(_ settings: Settings, _ setting: SettingID, @ViewBuilder content: () -> Content) {
+        self._settings = ObservedObject(wrappedValue: settings)
+        self.setting = setting
+        self.content = content()
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            content
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button {
+                settings.reset(setting)
+            } label: {
+                Image(systemName: "arrow.counterclockwise")
+            }
+            .buttonStyle(.borderless)
+            .disabled(settings.isDefault(setting))
+            .help("Reset to the default")
+            .accessibilityLabel("Reset to the default")
+        }
+    }
+}
+
 private struct PreviewSection: View {
     @ObservedObject var settings: Settings
     var body: some View {
@@ -111,82 +145,106 @@ private struct AppearancePane: View {
             PreviewSection(settings: settings)
 
             Section("Tabs") {
-                Picker("Color theme", selection: $settings.theme) {
-                    ForEach(ColorTheme.allCases) { Text($0.title).tag($0) }
+                Resettable(settings, .theme) {
+                    Picker("Color theme", selection: $settings.theme) {
+                        ForEach(ColorTheme.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.radioGroup)
                 }
-                .pickerStyle(.radioGroup)
                 Help("Pure black keeps every tab black with white text, whatever the system appearance. "
                     + "The active tab has full-white text and the others are slightly dimmer.")
 
-                Toggle("Same width for every tab", isOn: $settings.equalTabWidth)
-                HStack {
-                    Slider(value: $settings.maxTabWidth, in: Settings.maxTabWidthRange, step: 10) {
-                        Text("Widest tab")
-                    }
-                    Text("\(Int(settings.maxTabWidth)) pt")
-                        .monospacedDigit()
-                        .frame(width: 70, alignment: .trailing)
+                Resettable(settings, .equalTabWidth) {
+                    Toggle("Same width for every tab", isOn: $settings.equalTabWidth)
                 }
-                .disabled(!settings.equalTabWidth)
+                Resettable(settings, .maxTabWidth) {
+                    HStack {
+                        Slider(value: $settings.maxTabWidth, in: Settings.maxTabWidthRange, step: 10) {
+                            Text("Widest tab")
+                        }
+                        Text("\(Int(settings.maxTabWidth)) pt")
+                            .monospacedDigit()
+                            .frame(width: 70, alignment: .trailing)
+                    }
+                    .disabled(!settings.equalTabWidth)
+                }
                 Help("Tabs share the room in the bar equally, like browser tabs, and shrink as more windows open. "
                     + "Very narrow tabs show only the app icon.")
 
-                Picker("Tab style", selection: $settings.style) {
-                    ForEach(TabStyle.allCases) { Text($0.title).tag($0) }
+                Resettable(settings, .style) {
+                    Picker("Tab style", selection: $settings.style) {
+                        ForEach(TabStyle.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.radioGroup)
                 }
-                .pickerStyle(.radioGroup)
                 Help("Square tabs touch the top edge of the screen and flare out into it, like an upside-down "
                     + "browser tab. Rounded tabs are inset, with four rounded corners.")
 
-                Picker("Active tab", selection: $settings.indicator) {
-                    ForEach(ActiveIndicator.allCases) { Text($0.title).tag($0) }
+                Resettable(settings, .indicator) {
+                    Picker("Active tab", selection: $settings.indicator) {
+                        ForEach(ActiveIndicator.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
                 }
-                .pickerStyle(.segmented)
                 Help("How the focused window's tab stands out. Underline uses the accent color. Pure black "
                     + "has no brighter fill; its active tab has full-white text instead.")
 
-                Toggle("Use the system accent color", isOn: $settings.useSystemAccent)
-                ColorPicker("Custom accent color", selection: accentBinding, supportsOpacity: false)
-                    .disabled(settings.useSystemAccent)
+                Resettable(settings, .useSystemAccent) {
+                    Toggle("Use the system accent color", isOn: $settings.useSystemAccent)
+                }
+                Resettable(settings, .customAccent) {
+                    ColorPicker("Custom accent color", selection: accentBinding, supportsOpacity: false)
+                        .disabled(settings.useSystemAccent)
+                }
                 Help("Set in System Settings, Appearance, unless you pick a custom color here.")
             }
 
             Section("Strip") {
-                HStack {
-                    Slider(value: $settings.tabHeightPercent, in: Settings.tabHeightRange, step: 5) {
-                        Text("Tab height")
+                Resettable(settings, .tabHeightPercent) {
+                    HStack {
+                        Slider(value: $settings.tabHeightPercent, in: Settings.tabHeightRange, step: 5) {
+                            Text("Tab height")
+                        }
+                        Text("\(Int(settings.tabHeightPercent))% of the menu bar")
+                            .monospacedDigit()
+                            .frame(width: 150, alignment: .trailing)
                     }
-                    Text("\(Int(settings.tabHeightPercent))% of the menu bar")
-                        .monospacedDigit()
-                        .frame(width: 150, alignment: .trailing)
                 }
                 Help("Tabs stay flush with the top. A shorter tab leaves the bottom of the menu bar clear.")
 
-                Picker("Width", selection: $settings.widthMode) {
-                    ForEach(StripWidthMode.allCases) { Text($0.title).tag($0) }
-                }
-                .pickerStyle(.radioGroup)
-                HStack {
-                    Slider(value: $settings.stripWidth, in: Settings.stripWidthRange, step: 10) {
-                        Text(settings.widthMode == .automatic ? "Maximum width" : "Width")
+                Resettable(settings, .widthMode) {
+                    Picker("Width", selection: $settings.widthMode) {
+                        ForEach(StripWidthMode.allCases) { Text($0.title).tag($0) }
                     }
-                    Text("\(Int(settings.stripWidth)) pt")
-                        .monospacedDigit()
-                        .frame(width: 60, alignment: .trailing)
+                    .pickerStyle(.radioGroup)
+                }
+                Resettable(settings, .stripWidth) {
+                    HStack {
+                        Slider(value: $settings.stripWidth, in: Settings.stripWidthRange, step: 10) {
+                            Text(settings.widthMode == .automatic ? "Maximum width" : "Width")
+                        }
+                        Text("\(Int(settings.stripWidth)) pt")
+                            .monospacedDigit()
+                            .frame(width: 60, alignment: .trailing)
+                    }
                 }
                 Help(settings.widthMode == .automatic
                     ? "The strip grows with your tabs up to this width, and leaves the rest of the menu bar clickable. "
                         + "On a screen with a notch it may use all the space between the Apple menu and the notch."
                     : "The strip always takes this width. Empty space in it does not pass clicks to the menu bar.")
 
-                Picker("Alignment", selection: $settings.alignment) {
-                    ForEach(StripAlignment.allCases) { Text($0.title).tag($0) }
+                Resettable(settings, .alignment) {
+                    Picker("Alignment", selection: $settings.alignment) {
+                        ForEach(StripAlignment.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
                 }
-                .pickerStyle(.segmented)
                 Help("With three or more tabs the strip fills the whole space. With fewer, Middle centers them and "
                     + "Right puts them at the end, next to the notch on screens that have one.")
 
-                Toggle("Cover the Apple menu (screens with a notch)", isOn: $settings.coverAppleMenu)
+                Resettable(settings, .coverAppleMenu) {
+                    Toggle("Cover the Apple menu (screens with a notch)", isOn: $settings.coverAppleMenu)
+                }
                 Help("The first tab starts at the very left edge, so pushing the pointer into the top left corner "
                     + "selects it. The Apple menu is then hidden underneath; right-click a tab and choose Hide for to reach it.")
             }
@@ -205,10 +263,12 @@ private struct TabsPane: View {
             PreviewSection(settings: settings)
 
             Section("Order") {
-                Picker("Tab order", selection: $settings.order) {
-                    ForEach(TabOrderMode.allCases) { Text($0.title).tag($0) }
+                Resettable(settings, .order) {
+                    Picker("Tab order", selection: $settings.order) {
+                        ForEach(TabOrderMode.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.radioGroup)
                 }
-                .pickerStyle(.radioGroup)
                 Help(settings.order.help)
             }
 
@@ -229,14 +289,20 @@ private struct TabsPane: View {
             }
 
             Section("Labels") {
-                Picker("Show", selection: $settings.label) {
-                    ForEach(TabLabelMode.allCases) { Text($0.title).tag($0) }
+                Resettable(settings, .label) {
+                    Picker("Show", selection: $settings.label) {
+                        ForEach(TabLabelMode.allCases) { Text($0.title).tag($0) }
+                    }
                 }
-                Toggle("Shrink to icon-only when crowded", isOn: $settings.shrinkWhenCrowded)
+                Resettable(settings, .shrinkWhenCrowded) {
+                    Toggle("Shrink to icon-only when crowded", isOn: $settings.shrinkWhenCrowded)
+                }
                 Help("When the tabs do not fit, they drop their labels before they shrink or scroll.")
 
-                Stepper(value: $settings.maxTabs, in: Settings.maxTabsRange) {
-                    Text("Show up to \(settings.maxTabs) tabs")
+                Resettable(settings, .maxTabs) {
+                    Stepper(value: $settings.maxTabs, in: Settings.maxTabsRange) {
+                        Text("Show up to \(settings.maxTabs) tabs")
+                    }
                 }
                 Help("Extra windows go into a +N tab at the end. Click it for a menu of the rest.")
             }
@@ -286,10 +352,12 @@ private struct DisplaysPane: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Show on all displays", isOn: $settings.showOnAllDisplays)
+                Resettable(settings, .showOnAllDisplays) {
+                    Toggle("Show on all displays", isOn: $settings.showOnAllDisplays)
+                }
                 Help("Turn this off to choose displays one by one.")
             }
-            Section("Connected displays") {
+            Section {
                 ForEach(screens) { row in
                     Toggle(isOn: Binding(
                         get: { settings.isDisplayEnabled(row.id) },
@@ -303,6 +371,11 @@ private struct DisplaysPane: View {
                     .disabled(settings.showOnAllDisplays)
                 }
                 Help("A display only shows tabs while it has a visible menu bar.")
+            } header: {
+                // The reset arrow for the whole list of per-display choices.
+                Resettable(settings, .disabledDisplays) {
+                    Text("Connected displays")
+                }
             }
         }
         .formStyle(.grouped)
@@ -322,36 +395,48 @@ private struct BehaviourPane: View {
     var body: some View {
         Form {
             Section("When to hide") {
-                Toggle("Hide when only one window is open", isOn: $settings.hideWhenSingleWindow)
+                Resettable(settings, .hideWhenSingleWindow) {
+                    Toggle("Hide when only one window is open", isOn: $settings.hideWhenSingleWindow)
+                }
                 Help("Counted per display.")
-                Toggle("Hide in full-screen apps", isOn: $settings.hideInFullScreen)
+                Resettable(settings, .hideInFullScreen) {
+                    Toggle("Hide in full-screen apps", isOn: $settings.hideInFullScreen)
+                }
                 Help("The menu bar is hidden in full screen, so the strip steps aside too.")
             }
 
             Section("Which windows get a tab") {
-                Toggle("Include minimized windows", isOn: $settings.includeMinimized)
+                Resettable(settings, .includeMinimized) {
+                    Toggle("Include minimized windows", isOn: $settings.includeMinimized)
+                }
                 Help("Minimized windows show as tabs with a dimmed icon; clicking one restores it. "
                     + "Off: they never appear.")
 
-                Toggle("Ignore small helper windows", isOn: $settings.ignoreSmallWindows)
-                HStack {
-                    Slider(value: $settings.smallWindowSize, in: Settings.smallWindowRange, step: 10) {
-                        Text("Smaller than")
-                    }
-                    Text("\(Int(settings.smallWindowSize)) pt")
-                        .monospacedDigit()
-                        .frame(width: 60, alignment: .trailing)
+                Resettable(settings, .ignoreSmallWindows) {
+                    Toggle("Ignore small helper windows", isOn: $settings.ignoreSmallWindows)
                 }
-                .disabled(!settings.ignoreSmallWindows)
+                Resettable(settings, .smallWindowSize) {
+                    HStack {
+                        Slider(value: $settings.smallWindowSize, in: Settings.smallWindowRange, step: 10) {
+                            Text("Smaller than")
+                        }
+                        Text("\(Int(settings.smallWindowSize)) pt")
+                            .monospacedDigit()
+                            .frame(width: 60, alignment: .trailing)
+                    }
+                    .disabled(!settings.ignoreSmallWindows)
+                }
                 Help("Skips find bars, popovers and palettes: windows the app marks as non-standard, "
                     + "or with a side shorter than this.")
             }
 
             Section("Hide on demand") {
-                TextField("Hide for (seconds)", text: $durationsText)
-                    .onSubmit(saveDurations)
-                    .onAppear { durationsText = Self.format(settings.hideDurations) }
-                    .onChange(of: durationsText) { _ in durationsError = false }
+                Resettable(settings, .hideDurations) {
+                    TextField("Hide for (seconds)", text: $durationsText)
+                        .onSubmit(saveDurations)
+                        .onAppear { durationsText = Self.format(settings.hideDurations) }
+                        .onChange(of: durationsText) { _ in durationsError = false }
+                }
                 HStack {
                     Help(durationsError
                         ? "Could not read that. Use whole seconds separated by commas, for example 10, 30, 60."
@@ -363,6 +448,11 @@ private struct BehaviourPane: View {
             }
         }
         .formStyle(.grouped)
+        // A reset (or a save) changes the stored values; keep the text field showing them.
+        .onChange(of: settings.hideDurations) { durations in
+            durationsText = Self.format(durations)
+            durationsError = false
+        }
     }
 
     private func saveDurations() {
@@ -389,6 +479,7 @@ private struct GeneralPane: View {
     var body: some View {
         Form {
             Section("Startup") {
+                // Launch at login is system state (SMAppService), not a Settings value, so it has no reset arrow.
                 Toggle("Launch at login", isOn: Binding(
                     get: { loginItem.isOn },
                     set: { loginItem.set($0) }
@@ -402,7 +493,9 @@ private struct GeneralPane: View {
                     Button("Open Login Items Settings") { loginItem.openLoginItemsSettings() }
                 }
 
-                Toggle("Show Settings when the app is opened again", isOn: $settings.showSettingsOnReopen)
+                Resettable(settings, .showSettingsOnReopen) {
+                    Toggle("Show Settings when the app is opened again", isOn: $settings.showSettingsOnReopen)
+                }
                 Help("There is no Dock icon or menu bar icon. Open the app again from Finder or Spotlight "
                     + "to get here, or right-click any tab and choose Settings.")
             }
@@ -452,7 +545,7 @@ private struct AboutPane: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Spacer().frame(height: 8)
-            Button("Reset to defaults…") { confirmReset = true }
+            Button("Reset all to defaults…") { confirmReset = true }
                 .confirmationDialog(
                     "Reset all settings to their defaults?",
                     isPresented: $confirmReset
@@ -460,7 +553,7 @@ private struct AboutPane: View {
                     Button("Reset", role: .destructive) { settings.resetToDefaults() }
                     Button("Cancel", role: .cancel) {}
                 } message: {
-                    Text("Pinned apps are cleared too. Launch at login is not changed.")
+                    Text("Your pinned apps are kept. Launch at login is not changed.")
                 }
             Spacer()
         }
