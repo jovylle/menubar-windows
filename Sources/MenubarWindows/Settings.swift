@@ -79,10 +79,14 @@ enum StripAlignment: String, CaseIterable, Identifiable {
     case center
     case right
     var id: String { rawValue }
-    var title: String {
+    var title: String { title(onNotchedScreen: false) }
+
+    /// On a notched screen the strip's region is the left half of the bar, so centering in it looks
+    /// like Left and pushing against the notch looks like Middle.
+    func title(onNotchedScreen notched: Bool) -> String {
         switch self {
-        case .center: return "Middle"
-        case .right: return "Right"
+        case .center: return notched ? "Left" : "Middle"
+        case .right: return notched ? "Middle" : "Right"
         }
     }
 }
