@@ -8,6 +8,8 @@
 //   Left to right: Terminal, Notes, Mail   Pinned (Notes pinned): Notes, Mail, Terminal
 // - Demo mode renames them to invented apps (Draftpad, Shellbox, Planner, same order rules) with
 //   generated icons, so no real app shows in screenshots.
+// - The preview bar has no notch. Left (the center choice) follows the notched rule only when some
+//   screen has a notch, because that is when the picker says Left; otherwise Left does not exist.
 
 import AppKit
 import MenubarWindowsCore
@@ -116,11 +118,18 @@ final class PreviewBarView: NSView {
         let width = Settings.shared.widthMode == .automatic
             ? strip.preferredWidth(maximum: available)
             : min(available, CGFloat(Settings.shared.stripWidth) * available / 900)
-        // Same rules as MenuBarGeometry.freeStrip: Middle centers the strip, Right puts it at the end.
+        // Same rules as MenuBarGeometry.freeStrip (StripPlacement): Left on a notched screen starts after
+        // the Apple menu, or at the left edge when covering it; Middle centers off a notch; Right ends it.
+        let notched = NSScreen.screens.contains { $0.auxiliaryTopLeftArea != nil }
+        let edge = StripPlacement.edge(
+            rightChoice: Settings.shared.alignment == .right,
+            onNotchedScreen: notched
+        )
         let x: CGFloat
-        switch Settings.shared.alignment {
+        switch edge {
+        case .leading: x = Settings.shared.coverAppleMenu ? 0 : StripLayout.appleMenuInset
         case .center: x = (bounds.width - width) / 2
-        case .right: x = bounds.width - 60 - width
+        case .trailing: x = bounds.width - 60 - width
         }
         let tabHeight = (Self.barHeight * CGFloat(Settings.shared.tabHeightPercent) / 100).rounded()
         strip.frame = NSRect(

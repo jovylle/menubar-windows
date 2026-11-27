@@ -16,8 +16,11 @@
 //   (appleMenuInset) and the notch. Elsewhere it is the configured strip width, in the middle of the bar
 //   (minimumLeftInset keeps the Apple menu and app name clear). The frontmost app's menus are ignored
 //   on purpose; "Hide for ..." reaches them.
-// - "Cover the Apple menu" (notched screens only) moves the left edge to the screen edge.
-// - Alignment inside the region is Middle or Right. Three or more tabs fill the whole region.
+// - "Cover the Apple menu" moves the left edge to the screen edge. It only matters where the strip
+//   hugs the left (Left on a notched screen); Middle and Right keep their place.
+// - Alignment inside the region comes from StripPlacement (Core). Left on a notched screen hugs the
+//   leading edge; otherwise Middle centers and Right/Middle-on-notch hugs the trailing edge. Three or
+//   more tabs fill the whole region.
 // - Status icons are windows at level 25 (status bar) inside the bar band. The region's right edge is
 //   pulled back to stay clear of them, sliding left to keep the width.
 // - The panel extends topOverscan points ABOVE the screen's top edge, so a click with the pointer
@@ -25,6 +28,7 @@
 
 import AppKit
 import ApplicationServices
+import MenubarWindowsCore
 
 enum StripLayout {
     /// Default strip width (the maximum in Automatic width mode). The user setting overrides it.
@@ -55,18 +59,11 @@ enum StripLayout {
 }
 
 struct FreeStrip {
-    enum Anchor: String {
-        /// Middle of the region.
-        case center
-        /// Right end of the region (against the notch, or the status icons).
-        case trailing
-    }
-
     /// Cocoa coordinates, pinned to the top edge of the screen with the menu bar's height plus the
     /// top overscan. This is the most the strip may cover.
     let frame: NSRect
-    /// Where a narrower panel sits inside `frame`.
-    let anchor: Anchor
+    /// Which edge of `frame` a narrower panel sits against.
+    let anchor: StripPlacement.Edge
     /// Short note for `--list` about how the region was found.
     let leftSource: String
 
@@ -79,6 +76,7 @@ struct FreeStrip {
         var rect = frame
         rect.size.width = width
         switch anchor {
+        case .leading: rect.origin.x = frame.minX
         case .center: rect.origin.x = (frame.midX - width / 2).rounded()
         case .trailing: rect.origin.x = frame.maxX - width
         }
@@ -195,7 +193,8 @@ enum MenuBarGeometry {
     /// - Parameters:
     ///   - width: the strip width setting (the maximum in Automatic width mode). Ignored on a notched
     ///     screen, where the strip may use everything between the Apple menu and the notch.
-    ///   - alignment: right anchors a narrower panel to the region's right edge (the notch); middle centers it.
+    ///   - alignment: right anchors a narrower panel to the region's right edge; Left (center on a notched
+    ///     screen) hugs the Apple menu side; Middle (center elsewhere) centers it. See StripPlacement.
     ///   - coverAppleMenu: on a notched screen, start at the very left edge, over the Apple menu, so the
     ///     pointer thrown into the top left corner lands on the first tab.
     ///   - hideInFullScreen: hide while the frontmost window is full screen.
@@ -245,7 +244,10 @@ enum MenuBarGeometry {
             width: hi - lo,
             height: height + StripLayout.topOverscan
         )
-        let anchor: FreeStrip.Anchor = alignment == .right ? .trailing : .center
+        let anchor = StripPlacement.edge(
+            rightChoice: alignment == .right,
+            onNotchedScreen: screen.auxiliaryTopLeftArea != nil
+        )
         return FreeStrip(
             frame: frame,
             anchor: anchor,

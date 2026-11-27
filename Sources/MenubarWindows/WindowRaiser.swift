@@ -11,12 +11,22 @@
 // - A minimized window must be un-minimized (AXMinimized = false) before AXRaise has any effect.
 // - Close presses the window's own AXCloseButton, so the app runs its normal close path (it may ask to
 //   save). Nothing is force-closed.
+// - Our own Settings window is handled in-process (NSWindow), never through AX: AX calls to our own
+//   process from the main thread stall until they time out. Other own windows are never listed.
 
 import AppKit
 import ApplicationServices
 
 enum WindowRaiser {
     static func raise(_ window: WindowInfo) {
+        if isOwn(window) {
+            guard let own = WindowProvider.ownTabWindow(windowID: window.windowID) else { return }
+            if own.isMiniaturized { own.deminiaturize(nil) }
+            AppActivation.bringToFront()
+            own.makeKeyAndOrderFront(nil)
+            return
+        }
+
         // Setting AXFrontmost on the app element works even when this accessory app is not active.
         // On macOS 14+ a plain activate() from a background app can be ignored.
         let appElement = AXUIElementCreateApplication(window.pid)
@@ -39,6 +49,10 @@ enum WindowRaiser {
     }
 
     static func close(_ window: WindowInfo) {
+        if isOwn(window) {
+            WindowProvider.ownTabWindow(windowID: window.windowID)?.performClose(nil)
+            return
+        }
         guard let target = axWindow(for: window),
               let button = AX.element(target.element, "AXCloseButton") else {
             NSSound.beep()
@@ -48,6 +62,10 @@ enum WindowRaiser {
     }
 
     static func minimize(_ window: WindowInfo) {
+        if isOwn(window) {
+            WindowProvider.ownTabWindow(windowID: window.windowID)?.miniaturize(nil)
+            return
+        }
         guard let target = axWindow(for: window) else {
             NSSound.beep()
             return
@@ -56,6 +74,10 @@ enum WindowRaiser {
         if result != .success, let button = AX.element(target.element, "AXMinimizeButton") {
             _ = AXUIElementPerformAction(button, "AXPress" as CFString)
         }
+    }
+
+    private static func isOwn(_ window: WindowInfo) -> Bool {
+        window.pid == WindowProvider.ownPID
     }
 
     private static func axWindow(for window: WindowInfo) -> WindowProvider.AXWindow? {
