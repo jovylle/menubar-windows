@@ -78,7 +78,7 @@ More in [`assets/screenshots/`](assets/screenshots/): `strip-three.png`, `strip-
 - Tabs live in the rarely used part of the menu bar (the far end of the app's menu titles and the area
   beside the notch), left of the status icons, on every display that shows a menu bar.
 - Handles the notch: on notched laptops the strip ends just left of it, against the camera housing.
-- Alignment: *Left* (right after the Apple menu), *Middle* or *Right*. On a notched screen the choices are Left and Middle.
+- Alignment: *Left* (right after the Apple menu), *Middle* or *Right*. When any connected screen has a notch the choices are Left and Middle. Left starts right after the Apple menu on every screen; Middle sits against the notch on a notched screen and is centered on one without a notch.
 - Clicks land at the very top pixel row: the panel extends 6pt above the screen edge.
 - Stays clear of status icons, and leaves the Apple menu and the app name usable.
 - Five tab orders, pinning, four label modes, two tab styles, two color themes (match the system or
@@ -100,7 +100,7 @@ Each setting has a reset arrow (↺) after its control. It is greyed out while t
 
 | Section | Options (default in bold) |
 | --- | --- |
-| Appearance | Tab style: **Square, flush with the top** or Rounded. Color theme: **Match the system** or Pure black. Tab height: 50 to 100% of the menu bar (**85%**). Same width for every tab: **on**, up to 220pt, sharing the room like browser tabs. Active tab: Underline, **Brighter fill**, Both. Accent: **system** or a custom color. Width: **Automatic (fit the tabs, up to a maximum)** or Fixed, 240 to 900pt (**560**). Alignment: Left (right after the Apple menu), **Middle** or Right; a notched screen has Left and Middle only. Cover the Apple menu (off) starts Left at the screen edge. Three or more tabs fill the whole strip; on a notched screen the strip is everything between the Apple menu and the notch. Live preview. |
+| Appearance | Tab style: **Square, flush with the top** or Rounded. Color theme: **Match the system** or Pure black. Tab height: 50 to 100% of the menu bar (**85%**). Same width for every tab: **on**, up to 220pt, sharing the room like browser tabs. Active tab: Underline, **Brighter fill**, Both. Accent: **system** or a custom color. Width: **Automatic (fit the tabs, up to a maximum)** or Fixed, 240 to 900pt (**560**). Alignment: Left (right after the Apple menu), **Middle** or Right; with a notched screen connected the picker has Left and Middle only, and Left is right after the Apple menu on every screen. Cover the Apple menu (off) starts Left at the screen edge. Three or more tabs fill the whole strip; on a notched screen the strip is everything between the Apple menu and the notch. Live preview. |
 | Tabs and order | Order (see below, **Automatic**). Pinned apps list. Labels: App name, Window title, **App name and title**, Icon only. **Shrink to icon-only when crowded**. Show up to 3 to 12 tabs (**8**); the rest go in a **+N** tab that opens a menu. Live preview. |
 | Displays | **Show on all displays**, or a toggle per connected display (stored by display UUID). |
 | Behaviour | Hide when only one window is open (off). **Hide in full-screen apps**. Include minimized windows (off; they show with a dimmed icon). **Ignore small helper windows** smaller than **100pt** (also drops windows the app marks with a non-standard AX subrole, such as Edge's Find bar). Hide-for durations (**10, 30, 60** seconds). |

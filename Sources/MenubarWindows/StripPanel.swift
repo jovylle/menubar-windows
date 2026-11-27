@@ -69,19 +69,22 @@ final class StripPanel: NSPanel {
     }
 }
 
-/// Layout options that come from Settings.
+/// Layout options that come from Settings, plus the screen's edge for the tabs.
 struct StripOptions: Equatable {
     var shrinkWhenCrowded = true
-    var alignment: StripAlignment = .center
+    /// The edge the tabs sit against inside the strip. It comes from the screen's placement (StripPlacement),
+    /// not from the stored alignment, because the same stored value can mean different things per screen.
+    var edge: StripPlacement.Edge = .center
     var equalWidth = true
     var maxTabWidth: CGFloat = 220
     /// Space above the pills that belongs to the panel but not the drawn tab (the top overscan).
     var topOverscan: CGFloat = StripLayout.topOverscan
 
-    static var current: StripOptions {
+    /// - Parameter edge: the tabs' edge on the screen the strip is on (`FreeStrip.anchor`).
+    static func current(edge: StripPlacement.Edge) -> StripOptions {
         StripOptions(
             shrinkWhenCrowded: Settings.shared.shrinkWhenCrowded,
-            alignment: Settings.shared.alignment,
+            edge: edge,
             equalWidth: Settings.shared.equalTabWidth,
             maxTabWidth: CGFloat(Settings.shared.maxTabWidth)
         )
@@ -314,12 +317,12 @@ final class StripContentView: NSView {
         _ models: [PillModel],
         overflow: [PillModel] = [],
         appearance: PillAppearance = .current(),
-        options: StripOptions = .current
+        options: StripOptions
     ) {
         let newSignature = (models + overflow)
             .map { "\($0.key)|\($0.text)|\($0.isActive)|\($0.isMinimized)" }
             .joined(separator: "\n")
-            + "#\(overflow.count)#\(appearance.signature)#\(options.shrinkWhenCrowded)#\(options.alignment.rawValue)#\(options.equalWidth)#\(options.maxTabWidth)"
+            + "#\(overflow.count)#\(appearance.signature)#\(options.shrinkWhenCrowded)#\(options.edge.rawValue)#\(options.equalWidth)#\(options.maxTabWidth)"
         overflowModels = overflow
         // A rebuild would drop the pill under the pointer mid-drag. The strip updates after the drop.
         guard drag == nil, newSignature != signature else { return }
@@ -496,10 +499,10 @@ final class StripContentView: NSView {
         track.frame = NSRect(x: -scrollOffset, y: 0, width: max(width, contentWidth), height: height)
 
         var x: CGFloat
-        switch options.alignment {
-        case .left: x = 0
+        switch options.edge {
+        case .leading: x = 0
         case .center: x = max(0, (width - contentWidth) / 2)
-        case .right: x = max(0, width - contentWidth)
+        case .trailing: x = max(0, width - contentWidth)
         }
         // Display order. While dragging, the dragged tab is taken out and put back at its drop slot, so
         // the others slide aside. The dragged tab keeps the frame the pointer gave it.

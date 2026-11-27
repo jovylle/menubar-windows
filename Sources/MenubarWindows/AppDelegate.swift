@@ -180,12 +180,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
             if iconCache.count > 200 { iconCache.removeAll() }
         }
 
+        let pickerShowsNotchLabels = MenuBarGeometry.anyScreenHasNotch
         for (index, strip) in strips.enumerated() {
             guard settings.isDisplayEnabled(strip.displayID),
                   let region = MenuBarGeometry.freeStrip(
                       on: strip.screen,
                       width: CGFloat(settings.stripWidth),
                       alignment: settings.alignment,
+                      pickerShowsNotchLabels: pickerShowsNotchLabels,
                       coverAppleMenu: settings.coverAppleMenu,
                       hideInFullScreen: settings.hideInFullScreen
                   ) else {
@@ -214,7 +216,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
                 strip.panel.orderOut(nil)
                 continue
             }
-            strip.panel.content.update(models, overflow: overflow)
+            strip.panel.content.update(models, overflow: overflow, options: .current(edge: region.anchor))
             let width = strip.panel.content.preferredWidth(maximum: region.frame.width)
             let fills = StripFill.fillsRegion(tabCount: models.count)
             let frame = region.panelFrame(contentWidth: width, mode: settings.widthMode, fills: fills)
