@@ -1,7 +1,8 @@
 // StripPlacementTests.swift
-// Swift Testing. Left hugs the Apple menu side on every screen; Middle and Right keep their edges. The Left
-// span off a notch starts after the Apple menu (or at the edge when covering it), is clipped only on its
-// right by the status icons, and never slides left.
+// Swift Testing. The stored alignment maps to one placement per screen: Left starts after the Apple menu
+// on every screen where the picker says Left, and Middle and Right keep their edges. The Left span off a
+// notch starts after the Apple menu (or at the edge when covering it), is clipped only on its right by the
+// status icons, and never slides left.
 
 import CoreGraphics
 import Testing
@@ -9,6 +10,8 @@ import Testing
 
 @Suite("Strip placement")
 struct StripPlacementTests {
+    typealias Placement = StripPlacement.Placement
+
     /// The Left span on a 1920 pt screen starting at x 0, with the usual 42 pt Apple menu inset and 12 pt gap.
     private func leftSpan(width: CGFloat = 560, cover: Bool = false, statusMinX: CGFloat? = nil,
                           screenMinX: CGFloat = 0) -> (lo: CGFloat, hi: CGFloat) {
@@ -68,28 +71,82 @@ struct StripPlacementTests {
         #expect(span.hi - span.lo < 120)
     }
 
+    @Test("every stored alignment, picker labels and screen notch: region and edge")
+    func placementTable() {
+        // (stored, picker shows notch labels, screen has a notch) -> (region, edge)
+        let rows: [(StripPlacement.Choice, Bool, Bool, StripPlacement.Region, StripPlacement.Edge)] = [
+            // No notch on any screen: the picker shows Left, Middle and Right.
+            (.left, false, false, .leftSpan, .leading),
+            (.center, false, false, .centered, .center),
+            (.right, false, false, .centered, .trailing),
+            // A notched screen is connected, so the picker shows Left and Middle. External screen, no notch.
+            (.left, true, false, .leftSpan, .leading),
+            (.center, true, false, .leftSpan, .leading),
+            (.right, true, false, .centered, .center),
+            // The notched screen itself: unchanged. Left hugs the Apple menu, Middle sits against the notch.
+            (.left, true, true, .notch, .leading),
+            (.center, true, true, .notch, .leading),
+            (.right, true, true, .notch, .trailing),
+            // A notched screen always uses the notch region, whatever the picker flag says.
+            (.left, false, true, .notch, .leading),
+            (.center, false, true, .notch, .leading),
+            (.right, false, true, .notch, .trailing),
+        ]
+        for (choice, picker, notch, region, edge) in rows {
+            let placement = StripPlacement.placement(for: choice, pickerShowsNotchLabels: picker, screenHasNotch: notch)
+            #expect(placement == Placement(region: region, edge: edge),
+                    "stored \(choice.rawValue), picker notch labels \(picker), screen notch \(notch)")
+        }
+    }
+
+    @Test("stored center with a notched screen connected: the external screen's Left starts after the Apple menu")
+    func centerLeftOnExternalWithNotchedPicker() {
+        let placement = StripPlacement.placement(for: .center, pickerShowsNotchLabels: true, screenHasNotch: false)
+        #expect(placement.region == .leftSpan)
+        #expect(placement.edge == .leading)
+        #expect(leftSpan().lo == 42)
+    }
+
+    @Test("stored center with a notched screen connected: covering the Apple menu starts at the edge")
+    func centerLeftCoversOnExternalWithNotchedPicker() {
+        let placement = StripPlacement.placement(for: .center, pickerShowsNotchLabels: true, screenHasNotch: false)
+        #expect(placement.region == .leftSpan)
+        #expect(leftSpan(cover: true).lo == 0)
+    }
+
+    @Test("stored right with a notched screen connected: the external screen's Middle is centered")
+    func rightMiddleOnExternalWithNotchedPicker() {
+        let placement = StripPlacement.placement(for: .right, pickerShowsNotchLabels: true, screenHasNotch: false)
+        #expect(placement == Placement(region: .centered, edge: .center))
+    }
+
     @Test("Left on a notched screen hugs the leading edge")
     func leftOnNotch() {
-        #expect(StripPlacement.edge(rightChoice: false, onNotchedScreen: true) == .leading)
-    }
-
-    @Test("Middle on a screen without a notch stays centered")
-    func middleWithoutNotch() {
-        #expect(StripPlacement.edge(rightChoice: false, onNotchedScreen: false) == .center)
-    }
-
-    @Test("Right on a screen without a notch goes to the trailing edge")
-    func rightWithoutNotch() {
-        #expect(StripPlacement.edge(rightChoice: true, onNotchedScreen: false) == .trailing)
-    }
-
-    @Test("Left on a screen without a notch hugs the leading edge")
-    func leftWithoutNotch() {
-        #expect(StripPlacement.edge(rightChoice: false, onNotchedScreen: false, leftChoice: true) == .leading)
+        let placement = StripPlacement.placement(for: .center, pickerShowsNotchLabels: true, screenHasNotch: true)
+        #expect(placement == Placement(region: .notch, edge: .leading))
     }
 
     @Test("Middle on a notched screen sits against the notch")
     func middleOnNotch() {
-        #expect(StripPlacement.edge(rightChoice: true, onNotchedScreen: true) == .trailing)
+        let placement = StripPlacement.placement(for: .right, pickerShowsNotchLabels: true, screenHasNotch: true)
+        #expect(placement == Placement(region: .notch, edge: .trailing))
+    }
+
+    @Test("Middle on a screen without a notch and no notch anywhere stays centered")
+    func middleWithoutNotch() {
+        let placement = StripPlacement.placement(for: .center, pickerShowsNotchLabels: false, screenHasNotch: false)
+        #expect(placement == Placement(region: .centered, edge: .center))
+    }
+
+    @Test("Right on a screen without a notch and no notch anywhere goes to the trailing edge")
+    func rightWithoutNotch() {
+        let placement = StripPlacement.placement(for: .right, pickerShowsNotchLabels: false, screenHasNotch: false)
+        #expect(placement == Placement(region: .centered, edge: .trailing))
+    }
+
+    @Test("Left on a screen without a notch and no notch anywhere hugs the leading edge")
+    func leftWithoutNotch() {
+        let placement = StripPlacement.placement(for: .left, pickerShowsNotchLabels: false, screenHasNotch: false)
+        #expect(placement == Placement(region: .leftSpan, edge: .leading))
     }
 }

@@ -18,9 +18,12 @@
 //   menu and app name clear). The frontmost app's menus are ignored on purpose; "Hide for ..." reaches them.
 // - "Cover the Apple menu" moves the left edge to the screen edge. It applies to the region's left edge on
 //   a notched screen and to Left elsewhere. Middle and Right off a notch keep their place.
-// - Alignment inside the region comes from StripPlacement (Core). Left hugs the leading edge on every
-//   screen (on a notched screen the center option is the one titled Left). Middle centers off a notch;
-//   Right, and Middle on a notch, hug the trailing edge. Three or more tabs fill the whole region.
+// - Alignment comes from StripPlacement.placement (Core). The picker's labels depend on whether ANY screen
+//   has a notch (anyScreenHasNotch), so the same stored value can mean Left on a screen without a notch
+//   while the notched screen still shows Left and Middle. With that flag, a screen without a notch gives
+//   the stored center (Left) the Left span and the stored right (Middle) a centered block. Left hugs the
+//   leading edge on every screen. Right, and Middle on a notch, hug the trailing edge. Three or more tabs
+//   fill the whole region.
 // - Status icons are windows at level 25 (status bar) inside the bar band. The region's right edge is
 //   pulled back to stay clear of them, sliding left to keep the width.
 // - The panel extends topOverscan points ABOVE the screen's top edge, so a click with the pointer
@@ -190,19 +193,26 @@ enum MenuBarGeometry {
         return minX
     }
 
+    /// True when any connected screen has a notch. The picker's labels (Left and Middle) follow this flag
+    /// on every screen, so callers compute it once per pass and pass it down.
+    static var anyScreenHasNotch: Bool {
+        NSScreen.screens.contains { $0.auxiliaryTopLeftArea != nil }
+    }
+
     /// The strip region for one screen, or nil when it should be hidden.
     /// - Parameters:
     ///   - width: the strip width setting (the maximum in Automatic width mode). Ignored on a notched
     ///     screen, where the strip may use everything between the Apple menu and the notch.
-    ///   - alignment: right anchors a narrower panel to the region's right edge; Left (the center option on a
-    ///     notched screen) hugs the Apple menu side on any screen; Middle centers it off a notch. See StripPlacement.
+    ///   - alignment: the stored alignment. What it means on this screen comes from StripPlacement.
+    ///   - pickerShowsNotchLabels: `anyScreenHasNotch`, computed once by the caller.
     ///   - coverAppleMenu: start at the very left edge, over the Apple menu, so the pointer thrown into the
-    ///     top left corner lands on the first tab. Applies to a notched screen and to Left.
+    ///     top left corner lands on the first tab. Applies to every screen where the placement is Left.
     ///   - hideInFullScreen: hide while the frontmost window is full screen.
     static func freeStrip(
         on screen: NSScreen,
         width: CGFloat = StripLayout.stripWidth,
         alignment: StripAlignment = .center,
+        pickerShowsNotchLabels: Bool,
         coverAppleMenu: Bool = false,
         hideInFullScreen: Bool = true
     ) -> FreeStrip? {
@@ -214,15 +224,21 @@ enum MenuBarGeometry {
         let axMaxX = frontmostMenuTitlesMaxX(on: screen)
         guard reservedMenuBarHeight(screen) > 0 || axMaxX != nil else { return nil }
 
-        // On a notched screen the territory is the whole bar between the Apple menu and the notch.
-        // Elsewhere it is `width` wide: Left starts next to the Apple menu and only gives way to the status
-        // icons on its right; Middle and Right are a block centered in the bar, clear of the status icons.
+        let placement = alignment.placement(
+            pickerShowsNotchLabels: pickerShowsNotchLabels,
+            screenHasNotch: screen.auxiliaryTopLeftArea != nil
+        )
+        // A notched screen's territory is the whole bar between the Apple menu and the notch. Elsewhere it is
+        // `width` wide: a Left span starts next to the Apple menu and only gives way to the status icons on
+        // its right; a centered block (Middle, or Right) is clear of the status icons.
         let lo: CGFloat
         let hi: CGFloat
-        if let aux = screen.auxiliaryTopLeftArea {
+        switch placement.region {
+        case .notch:
+            guard let aux = screen.auxiliaryTopLeftArea else { return nil }
             lo = screen.frame.minX + (coverAppleMenu ? 0 : StripLayout.appleMenuInset)
             hi = aux.maxX - StripLayout.notchGap
-        } else if alignment == .left {
+        case .leftSpan:
             let span = StripPlacement.leftSpan(
                 screenMinX: screen.frame.minX,
                 width: width,
@@ -233,7 +249,7 @@ enum MenuBarGeometry {
             )
             lo = span.lo
             hi = span.hi
-        } else {
+        case .centered:
             let minLo = screen.frame.minX + StripLayout.minimumLeftInset
             var centeredLo = max(minLo, screen.frame.midX - width / 2)
             var centeredHi = screen.frame.midX + width / 2
@@ -260,15 +276,31 @@ enum MenuBarGeometry {
             width: hi - lo,
             height: height + StripLayout.topOverscan
         )
-        let anchor = StripPlacement.edge(
-            rightChoice: alignment == .right,
-            onNotchedScreen: screen.auxiliaryTopLeftArea != nil,
-            leftChoice: alignment == .left
-        )
+        let anchor = placement.edge
         return FreeStrip(
             frame: frame,
             anchor: anchor,
             leftSource: "menus ignored, anchor \(anchor.rawValue)"
+        )
+    }
+}
+
+extension StripAlignment {
+    /// The Core choice for this stored alignment (Core cannot see the app's enum).
+    var placementChoice: StripPlacement.Choice {
+        switch self {
+        case .left: return .left
+        case .center: return .center
+        case .right: return .right
+        }
+    }
+
+    /// What this stored alignment does on one screen. The same answer for the strip, the preview and --list.
+    func placement(pickerShowsNotchLabels: Bool, screenHasNotch: Bool) -> StripPlacement.Placement {
+        StripPlacement.placement(
+            for: placementChoice,
+            pickerShowsNotchLabels: pickerShowsNotchLabels,
+            screenHasNotch: screenHasNotch
         )
     }
 }

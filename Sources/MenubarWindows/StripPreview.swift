@@ -8,8 +8,9 @@
 //   Left to right: Terminal, Notes, Mail   Pinned (Notes pinned): Notes, Mail, Terminal
 // - Demo mode renames them to invented apps (Draftpad, Shellbox, Planner, same order rules) with
 //   generated icons, so no real app shows in screenshots.
-// - The preview bar has no notch. Left (the center choice) follows the notched rule only when some
-//   screen has a notch, because that is when the picker says Left; otherwise Left does not exist.
+// - The preview draws the notched layout when any screen has a notch, because that is when the picker
+//   says Left and Middle. Its placement comes from the same StripAlignment.placement as the strip. Off a
+//   notch, the picker has Left, Middle and Right, and the preview follows the same rule.
 
 import AppKit
 import MenubarWindowsCore
@@ -103,11 +104,18 @@ final class PreviewBarView: NSView {
                 action: {}
             )
         }
-        var options = StripOptions.current
+        var options = StripOptions.current(edge: placement.edge)
         options.topOverscan = 0
         strip.update(models, appearance: .current(inWindow: true), options: options)
         setAccessibilityLabel("Preview: tabs \(ordered.map(\.appName).joined(separator: ", ")), \(Self.samples[1].0.appName) active")
         needsLayout = true
+    }
+
+    /// The stored alignment on the preview's bar, with the same rules as MenuBarGeometry.freeStrip. The
+    /// preview treats its bar as notched when any screen has a notch, which is when the picker shows Left and Middle.
+    private var placement: StripPlacement.Placement {
+        let notched = MenuBarGeometry.anyScreenHasNotch
+        return Settings.shared.alignment.placement(pickerShowsNotchLabels: notched, screenHasNotch: notched)
     }
 
     override func layout() {
@@ -118,16 +126,8 @@ final class PreviewBarView: NSView {
         let width = Settings.shared.widthMode == .automatic
             ? strip.preferredWidth(maximum: available)
             : min(available, CGFloat(Settings.shared.stripWidth) * available / 900)
-        // Same rules as MenuBarGeometry.freeStrip (StripPlacement): Left on a notched screen starts after
-        // the Apple menu, or at the left edge when covering it; Middle centers off a notch; Right ends it.
-        let notched = NSScreen.screens.contains { $0.auxiliaryTopLeftArea != nil }
-        let edge = StripPlacement.edge(
-            rightChoice: Settings.shared.alignment == .right,
-            onNotchedScreen: notched,
-            leftChoice: Settings.shared.alignment == .left
-        )
         let x: CGFloat
-        switch edge {
+        switch placement.edge {
         case .leading: x = Settings.shared.coverAppleMenu ? 0 : StripLayout.appleMenuInset
         case .center: x = (bounds.width - width) / 2
         case .trailing: x = bounds.width - 60 - width

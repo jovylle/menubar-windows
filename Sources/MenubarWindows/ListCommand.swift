@@ -27,6 +27,7 @@ enum ListCommand {
             print("(Accessibility not granted: window list is empty and strip titles use the fallback offset)")
         }
         let tracker = WindowOrderTracker()
+        let pickerShowsNotchLabels = MenuBarGeometry.anyScreenHasNotch
 
         for (index, screen) in NSScreen.screens.enumerated() {
             let uuid = Displays.uuid(of: screen)
@@ -34,10 +35,16 @@ enum ListCommand {
             print("Screen \(index): \"\(Displays.name(of: screen))\" frame \(describe(screen.frame)), "
                 + "reserved menu bar \(String(format: "%.0f", MenuBarGeometry.reservedMenuBarHeight(screen)))pt, "
                 + "enabled \(settings.isDisplayEnabled(uuid))")
+            let placement = settings.alignment.placement(
+                pickerShowsNotchLabels: pickerShowsNotchLabels,
+                screenHasNotch: screen.auxiliaryTopLeftArea != nil
+            )
+            print("  alignment: stored \(settings.alignment.rawValue), region \(placement.region), tabs \(placement.edge.rawValue)")
             if let strip = MenuBarGeometry.freeStrip(
                 on: screen,
                 width: CGFloat(settings.stripWidth),
                 alignment: settings.alignment,
+                pickerShowsNotchLabels: pickerShowsNotchLabels,
                 coverAppleMenu: settings.coverAppleMenu,
                 hideInFullScreen: settings.hideInFullScreen
             ) {

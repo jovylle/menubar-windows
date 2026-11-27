@@ -254,7 +254,7 @@ private struct AppearancePane: View {
                 }
                 Help(onNotchedScreen
                     ? "With three or more tabs the strip fills the whole space. With fewer, Left starts them right after "
-                        + "the Apple menu, and Middle puts them next to the notch."
+                        + "the Apple menu on every screen. Middle puts them next to the notch, or centers them on a screen without one."
                     : "With three or more tabs the strip fills the whole space. With fewer, Left starts them right after "
                         + "the Apple menu, Middle centers them and Right puts them at the end.")
 
