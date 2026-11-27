@@ -244,16 +244,17 @@ private struct AppearancePane: View {
                     .pickerStyle(.segmented)
                 }
                 Help(onNotchedScreen
-                    ? "With three or more tabs the strip fills the whole space. With fewer, Left centers them between "
-                        + "the Apple menu and the notch, and Middle puts them next to the notch."
+                    ? "With three or more tabs the strip fills the whole space. With fewer, Left starts them right after "
+                        + "the Apple menu, and Middle puts them next to the notch."
                     : "With three or more tabs the strip fills the whole space. With fewer, Middle centers them and "
                         + "Right puts them at the end.")
 
                 Resettable(settings, .coverAppleMenu) {
                     Toggle("Cover the Apple menu (screens with a notch)", isOn: $settings.coverAppleMenu)
                 }
-                Help("The first tab starts at the very left edge, so pushing the pointer into the top left corner "
-                    + "selects it. The Apple menu is then hidden underneath; right-click a tab and choose Hide for to reach it.")
+                Help("With Left on a screen with a notch, the first tab starts at the very left edge, so pushing the pointer "
+                    + "into the top left corner selects it. The Apple menu is then hidden underneath; right-click a tab and "
+                    + "choose Hide for to reach it.")
             }
         }
         .formStyle(.grouped)

@@ -6,10 +6,13 @@
 //   itself first. activate(ignoringOtherApps:) is deprecated on macOS 14+, so activate() is used there.
 // - A window is created on show() and dropped after it closes, so its SwiftUI views (and their
 //   PermissionMonitor timers) do not keep running behind a closed window. show() makes a new one.
+// - Only the Settings window carries OwnWindowRule.settingsIdentifier, which lets WindowProvider list it
+//   as a tab. Onboarding has no identifier and stays out of the strip.
 // - SMAppService.mainApp only works from an .app bundle. Run as a bare binary (swift run) it fails,
 //   so the toggle is disabled there and says why.
 
 import AppKit
+import MenubarWindowsCore
 import ServiceManagement
 import SwiftUI
 
@@ -26,10 +29,12 @@ enum AppActivation {
 class HostedWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private let title: String
+    private let identifier: String?
     private let makeView: () -> AnyView
 
-    init(title: String, makeView: @escaping () -> AnyView) {
+    init(title: String, identifier: String? = nil, makeView: @escaping () -> AnyView) {
         self.title = title
+        self.identifier = identifier
         self.makeView = makeView
     }
 
@@ -38,6 +43,7 @@ class HostedWindowController: NSObject, NSWindowDelegate {
             let hosting = NSHostingController(rootView: makeView())
             let window = NSWindow(contentViewController: hosting)
             window.title = title
+            window.identifier = identifier.map { NSUserInterfaceItemIdentifier($0) }
             window.styleMask = [.titled, .closable, .miniaturizable]
             window.isReleasedWhenClosed = false
             window.delegate = self
@@ -76,7 +82,7 @@ final class SettingsWindowController: HostedWindowController {
     static let shared = SettingsWindowController()
 
     private init() {
-        super.init(title: "\(AppInfo.displayName) Settings") {
+        super.init(title: "\(AppInfo.displayName) Settings", identifier: OwnWindowRule.settingsIdentifier) {
             AnyView(SettingsView(settings: .shared))
         }
     }

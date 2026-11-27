@@ -16,6 +16,9 @@
 // - Ordering is NOT done here. TabOrdering (MenubarWindowsCore) orders the result per the user's mode.
 //   Never sort by CG z-order: it changes on every click and would reshuffle tabs under the cursor.
 // - Screen membership uses the window's CENTER in Cocoa coordinates.
+// - Own windows: this process is excluded from the AX path (its AX calls stall on the main thread). The one
+//   exception is the Settings window (OwnWindowRule), read in-process from NSApp.windows, with its title
+//   and frame from NSWindow and CG. Its focus and minimized state also come from NSWindow.
 
 import AppKit
 import ApplicationServices
@@ -122,7 +125,6 @@ enum WindowProvider {
             return []
         }
 
-        let ownPID = ProcessInfo.processInfo.processIdentifier
         let frontmostPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
         var axCache: [pid_t: [AXWindow]] = [:]
         var result: [WindowInfo] = []
@@ -140,12 +142,19 @@ enum WindowProvider {
                 continue
             }
             let pid = pid_t(pidNumber)
-            guard pid != ownPID, cgBounds.width > minimumWidth, cgBounds.height > minimumHeight else {
+            guard cgBounds.width > minimumWidth, cgBounds.height > minimumHeight else {
                 continue
             }
 
             let frame = MenuBarGeometry.cocoaRect(fromTopLeft: cgBounds)
             let windowID = CGWindowID(truncatingIfNeeded: number)
+            if pid == ownPID {
+                // Only the Settings window; every other own window is skipped. No AX for our own process.
+                guard let own = ownTabWindow(windowID: windowID) else { continue }
+                seen.insert(windowID)
+                result.append(ownWindowInfo(own, windowID: windowID, frame: frame, isMinimized: false))
+                continue
+            }
             if axCache[pid] == nil {
                 axCache[pid] = axWindows(pid: pid)
             }
@@ -171,15 +180,65 @@ enum WindowProvider {
             ))
         }
 
-        if let frontmostPID, let activeID = activeWindowID(pid: frontmostPID, tabs: frontmostTabs),
-           let index = result.firstIndex(where: { $0.windowID == activeID }) {
-            result[index] = result[index].focused()
+        if let frontmostPID {
+            let activeID = frontmostPID == ownPID
+                ? ownActiveWindowID()
+                : activeWindowID(pid: frontmostPID, tabs: frontmostTabs)
+            if let activeID, let index = result.firstIndex(where: { $0.windowID == activeID }) {
+                result[index] = result[index].focused()
+            }
         }
 
         if filter.includeMinimized {
+            result += ownMinimizedWindows(excluding: seen)
             result += minimizedWindows(excluding: seen, ownPID: ownPID, cache: &axCache, filter: filter)
         }
         return result
+    }
+
+    static var ownPID: pid_t { ProcessInfo.processInfo.processIdentifier }
+
+    /// The Settings window with this CG window number, read in-process. Nil for every other own window.
+    static func ownTabWindow(windowID: CGWindowID) -> NSWindow? {
+        NSApp.windows.first { window in
+            OwnWindowRule.isTabWindow(identifier: window.identifier?.rawValue)
+                && CGWindowID(truncatingIfNeeded: window.windowNumber) == windowID
+        }
+    }
+
+    /// The key window's tab ID when this app is frontmost and the key window is a tab (Settings).
+    private static func ownActiveWindowID() -> CGWindowID? {
+        guard let key = NSApp.keyWindow,
+              OwnWindowRule.isTabWindow(identifier: key.identifier?.rawValue) else {
+            return nil
+        }
+        return CGWindowID(truncatingIfNeeded: key.windowNumber)
+    }
+
+    /// Minimized own tab windows (the Settings window when it is miniaturized).
+    private static func ownMinimizedWindows(excluding seen: Set<CGWindowID>) -> [WindowInfo] {
+        NSApp.windows.compactMap { window in
+            let windowID = CGWindowID(truncatingIfNeeded: window.windowNumber)
+            guard OwnWindowRule.isTabWindow(identifier: window.identifier?.rawValue),
+                  window.isMiniaturized, !seen.contains(windowID) else {
+                return nil
+            }
+            return ownWindowInfo(window, windowID: windowID, frame: window.frame, isMinimized: true)
+        }
+    }
+
+    private static func ownWindowInfo(_ window: NSWindow, windowID: CGWindowID, frame: CGRect, isMinimized: Bool) -> WindowInfo {
+        let appName = NSRunningApplication.current.localizedName ?? AppInfo.displayName
+        return WindowInfo(
+            windowID: windowID,
+            pid: ownPID,
+            appKey: appKey(pid: ownPID, fallbackName: appName),
+            appName: appName,
+            title: window.title,
+            frame: frame,
+            isFocused: false,
+            isMinimized: isMinimized
+        )
     }
 
     /// Minimized windows of regular apps, read from AX. Their frame is the last on-screen frame.
