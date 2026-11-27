@@ -95,6 +95,7 @@ More in [`assets/screenshots/`](assets/screenshots/): `strip-three.png`, `strip-
 
 Open Settings by right-clicking any tab and choosing **Settings…**, or by opening the app again from
 Finder or Spotlight (there is no Dock icon and no menu bar icon by design). Every change applies at once.
+Each setting has a reset arrow (↺) after its control. It is greyed out while the setting is at its default.
 
 | Section | Options (default in bold) |
 | --- | --- |
@@ -103,7 +104,7 @@ Finder or Spotlight (there is no Dock icon and no menu bar icon by design). Ever
 | Displays | **Show on all displays**, or a toggle per connected display (stored by display UUID). |
 | Behaviour | Hide when only one window is open (off). **Hide in full-screen apps**. Include minimized windows (off; they show with a dimmed icon). **Ignore small helper windows** smaller than **100pt** (also drops windows the app marks with a non-standard AX subrole, such as Edge's Find bar). Hide-for durations (**10, 30, 60** seconds). |
 | General | Launch at login (SMAppService; only from the .app bundle). **Show Settings when the app is opened again**. Accessibility status and setup guide. |
-| About | Version, tagline, privacy note, Reset to defaults. |
+| About | Version, tagline, privacy note, Reset all to defaults (asks first; keeps pinned apps). |
 
 ### Tab order modes
 

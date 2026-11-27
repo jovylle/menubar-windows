@@ -14,6 +14,10 @@
 //   reconnects. NSScreen order and names are not stable enough.
 // - The custom accent color is stored as sRGB components; NSColor itself is not plist-safe.
 // - In demo mode `shared` reads and writes a separate, wiped suite (see DemoMode).
+// - Defaults are only in `Defaults`. `isDefault`, `reset` and `resetToDefaults` all read from it, so a
+//   new setting needs one case in each switch, plus one entry in `SettingID`. The compiler enforces the
+//   switches. Reset assigns the published properties, so it goes through the same save and `didChange`
+//   path as a manual change. It never touches pinned apps or the manual drag order.
 
 import AppKit
 import Combine
@@ -83,6 +87,17 @@ enum StripAlignment: String, CaseIterable, Identifiable {
     }
 }
 
+/// Every setting that has its own reset control in Settings. Pinned apps are not here: they are a list the
+/// user built, not a preference with a default, so "Reset all" leaves them alone (each has its own Unpin).
+enum SettingID: CaseIterable {
+    case order, label, shrinkWhenCrowded, maxTabs
+    case theme, style, equalTabWidth, maxTabWidth, tabHeightPercent, indicator
+    case useSystemAccent, customAccent, widthMode, stripWidth, alignment, coverAppleMenu
+    case showOnAllDisplays, disabledDisplays
+    case hideWhenSingleWindow, hideInFullScreen, includeMinimized, ignoreSmallWindows, smallWindowSize
+    case hideDurations, showSettingsOnReopen
+}
+
 final class Settings: ObservableObject {
     /// Demo mode (`-mw.demo YES`) uses a throwaway store so it never touches the real settings.
     static let shared = Settings(store: DemoMode.isOn ? DemoMode.store : .standard)
@@ -105,6 +120,7 @@ final class Settings: ObservableObject {
         static let coverAppleMenu = false
         static let maxTabs = 8
         static let showOnAllDisplays = true
+        static let disabledDisplays: [String] = []
         static let hideWhenSingleWindow = false
         static let hideInFullScreen = true
         static let includeMinimized = false
@@ -231,7 +247,7 @@ final class Settings: ObservableObject {
         alignment = choice(Key.alignment, Defaults.alignment)
         coverAppleMenu = value(Key.coverAppleMenu, Defaults.coverAppleMenu)
         showOnAllDisplays = value(Key.allDisplays, Defaults.showOnAllDisplays)
-        disabledDisplays = value(Key.disabledDisplays, [])
+        disabledDisplays = value(Key.disabledDisplays, Defaults.disabledDisplays)
         hideWhenSingleWindow = value(Key.hideSingle, Defaults.hideWhenSingleWindow)
         hideInFullScreen = value(Key.hideFullScreen, Defaults.hideInFullScreen)
         includeMinimized = value(Key.includeMinimized, Defaults.includeMinimized)
@@ -303,34 +319,73 @@ final class Settings: ObservableObject {
         return unique.isEmpty ? nil : Array(unique.prefix(6))
     }
 
-    /// Restores every setting to its default. Pins and onboarding state are kept unless asked.
-    func resetToDefaults(includingPins: Bool = true) {
-        order = Defaults.order
-        if includingPins { pinnedApps = [] }
-        label = Defaults.label
-        shrinkWhenCrowded = Defaults.shrinkWhenCrowded
-        maxTabs = Defaults.maxTabs
-        style = Defaults.style
-        theme = Defaults.theme
-        equalTabWidth = Defaults.equalTabWidth
-        maxTabWidth = Defaults.maxTabWidth
-        tabHeightPercent = Defaults.tabHeightPercent
-        indicator = Defaults.indicator
-        useSystemAccent = Defaults.useSystemAccent
-        customAccent = Defaults.customAccent
-        widthMode = Defaults.widthMode
-        stripWidth = Defaults.stripWidth
-        alignment = Defaults.alignment
-        coverAppleMenu = Defaults.coverAppleMenu
-        showOnAllDisplays = Defaults.showOnAllDisplays
-        disabledDisplays = []
-        hideWhenSingleWindow = Defaults.hideWhenSingleWindow
-        hideInFullScreen = Defaults.hideInFullScreen
-        includeMinimized = Defaults.includeMinimized
-        ignoreSmallWindows = Defaults.ignoreSmallWindows
-        smallWindowSize = Defaults.smallWindowSize
-        hideDurations = Defaults.hideDurations
-        showSettingsOnReopen = Defaults.showSettingsOnReopen
+    /// Whether a setting already has its default value. Its reset control is disabled when this is true.
+    func isDefault(_ setting: SettingID) -> Bool {
+        switch setting {
+        case .order: return order == Defaults.order
+        case .label: return label == Defaults.label
+        case .shrinkWhenCrowded: return shrinkWhenCrowded == Defaults.shrinkWhenCrowded
+        case .maxTabs: return maxTabs == Defaults.maxTabs
+        case .theme: return theme == Defaults.theme
+        case .style: return style == Defaults.style
+        case .equalTabWidth: return equalTabWidth == Defaults.equalTabWidth
+        case .maxTabWidth: return maxTabWidth == Defaults.maxTabWidth
+        case .tabHeightPercent: return tabHeightPercent == Defaults.tabHeightPercent
+        case .indicator: return indicator == Defaults.indicator
+        case .useSystemAccent: return useSystemAccent == Defaults.useSystemAccent
+        case .customAccent: return customAccent == Defaults.customAccent
+        case .widthMode: return widthMode == Defaults.widthMode
+        case .stripWidth: return stripWidth == Defaults.stripWidth
+        case .alignment: return alignment == Defaults.alignment
+        case .coverAppleMenu: return coverAppleMenu == Defaults.coverAppleMenu
+        case .showOnAllDisplays: return showOnAllDisplays == Defaults.showOnAllDisplays
+        case .disabledDisplays: return disabledDisplays == Defaults.disabledDisplays
+        case .hideWhenSingleWindow: return hideWhenSingleWindow == Defaults.hideWhenSingleWindow
+        case .hideInFullScreen: return hideInFullScreen == Defaults.hideInFullScreen
+        case .includeMinimized: return includeMinimized == Defaults.includeMinimized
+        case .ignoreSmallWindows: return ignoreSmallWindows == Defaults.ignoreSmallWindows
+        case .smallWindowSize: return smallWindowSize == Defaults.smallWindowSize
+        case .hideDurations: return hideDurations == Defaults.hideDurations
+        case .showSettingsOnReopen: return showSettingsOnReopen == Defaults.showSettingsOnReopen
+        }
+    }
+
+    /// Restores one setting to its default by assigning its published property, so the usual change path
+    /// runs (save, then `didChange`). It only sets the order mode: the manual drag order is not touched.
+    func reset(_ setting: SettingID) {
+        switch setting {
+        case .order: order = Defaults.order
+        case .label: label = Defaults.label
+        case .shrinkWhenCrowded: shrinkWhenCrowded = Defaults.shrinkWhenCrowded
+        case .maxTabs: maxTabs = Defaults.maxTabs
+        case .theme: theme = Defaults.theme
+        case .style: style = Defaults.style
+        case .equalTabWidth: equalTabWidth = Defaults.equalTabWidth
+        case .maxTabWidth: maxTabWidth = Defaults.maxTabWidth
+        case .tabHeightPercent: tabHeightPercent = Defaults.tabHeightPercent
+        case .indicator: indicator = Defaults.indicator
+        case .useSystemAccent: useSystemAccent = Defaults.useSystemAccent
+        case .customAccent: customAccent = Defaults.customAccent
+        case .widthMode: widthMode = Defaults.widthMode
+        case .stripWidth: stripWidth = Defaults.stripWidth
+        case .alignment: alignment = Defaults.alignment
+        case .coverAppleMenu: coverAppleMenu = Defaults.coverAppleMenu
+        case .showOnAllDisplays: showOnAllDisplays = Defaults.showOnAllDisplays
+        case .disabledDisplays: disabledDisplays = Defaults.disabledDisplays
+        case .hideWhenSingleWindow: hideWhenSingleWindow = Defaults.hideWhenSingleWindow
+        case .hideInFullScreen: hideInFullScreen = Defaults.hideInFullScreen
+        case .includeMinimized: includeMinimized = Defaults.includeMinimized
+        case .ignoreSmallWindows: ignoreSmallWindows = Defaults.ignoreSmallWindows
+        case .smallWindowSize: smallWindowSize = Defaults.smallWindowSize
+        case .hideDurations: hideDurations = Defaults.hideDurations
+        case .showSettingsOnReopen: showSettingsOnReopen = Defaults.showSettingsOnReopen
+        }
+    }
+
+    /// Restores every `SettingID` to its default. Pinned apps, onboarding and launch at login are not
+    /// settings in this sense, so they are left alone.
+    func resetToDefaults() {
+        for setting in SettingID.allCases { reset(setting) }
     }
 }
 
