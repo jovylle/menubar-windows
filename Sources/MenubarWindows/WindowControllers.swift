@@ -8,6 +8,8 @@
 //   PermissionMonitor timers) do not keep running behind a closed window. show() makes a new one.
 // - Only the Settings window carries OwnWindowRule.settingsIdentifier, which lets WindowProvider list it
 //   as a tab. Onboarding has no identifier and stays out of the strip.
+// - Closing onboarding by any means (Done, Later or the title bar button) marks it done. The guide still
+//   opens at launch whenever Accessibility is missing, but not on a relaunch while access is granted.
 // - SMAppService.mainApp only works from an .app bundle. Run as a bare binary (swift run) it fails,
 //   so the toggle is disabled there and says why.
 
@@ -100,6 +102,13 @@ final class OnboardingWindowController: HostedWindowController {
     func finish() {
         Settings.shared.hasCompletedOnboarding = true
         close()
+    }
+
+    /// Closing with the title bar button also counts as done. Only Done and Later used to set the flag, so
+    /// that close reopened the guide on every launch even when Accessibility was already granted.
+    override func windowWillClose(_ notification: Notification) {
+        Settings.shared.hasCompletedOnboarding = true
+        super.windowWillClose(notification)
     }
 }
 
