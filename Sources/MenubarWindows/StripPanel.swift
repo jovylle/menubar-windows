@@ -13,6 +13,11 @@
 //   flicker on the 0.5s refresh.
 // - The content view's layer has a 0.01-alpha fill. macOS lets clicks fall through fully transparent
 //   window pixels; the near-invisible fill keeps the strip, including the top overscan, clickable.
+// - Drag to reorder: the dragged pill follows the pointer (track coordinates, x only) and the others
+//   slide to the drop slot. The drop index is found from the pill centers at drag start, not from the
+//   sliding frames, so the slot does not flicker at a boundary. The drop calls StripActions.moveTab.
+//   Overflow ("+N") and the permission pill are never dragged or drop targets.
+// - update() does not rebuild pills while a drag is running; the pill being dragged must stay in place.
 
 import AppKit
 import MenubarWindowsCore
@@ -26,6 +31,9 @@ protocol StripActions: AnyObject {
     func close(_ window: WindowInfo)
     func minimize(_ window: WindowInfo)
     func openSettings()
+    /// A tab was dropped at a new position. `shown` is the window IDs of the visible tabs, in their
+    /// current order; `from` and `to` are indices into it.
+    func moveTab(from: Int, to: Int, shown: [UInt32])
 }
 
 final class StripPanel: NSPanel {
@@ -90,6 +98,19 @@ final class StripContentView: NSView {
     private var options = StripOptions()
     /// Horizontal scroll position, used only when the pills do not fit.
     private var scrollOffset: CGFloat = 0
+    /// The tab being dragged, if any.
+    private var drag: Drag?
+
+    private struct Drag {
+        /// Index of the dragged pill in `pills`.
+        let index: Int
+        /// Distance from the pill's left edge to the pointer when the drag began.
+        let grabOffset: CGFloat
+        /// Pill frames when the drag began. The drop slot is computed from these, not from the sliding frames.
+        let startFrames: [CGRect]
+        /// Index where the pill will land when dropped.
+        var to: Int
+    }
 
     weak var actions: StripActions?
 
@@ -300,7 +321,8 @@ final class StripContentView: NSView {
             .joined(separator: "\n")
             + "#\(overflow.count)#\(appearance.signature)#\(options.shrinkWhenCrowded)#\(options.alignment.rawValue)#\(options.equalWidth)#\(options.maxTabWidth)"
         overflowModels = overflow
-        guard newSignature != signature else { return }
+        // A rebuild would drop the pill under the pointer mid-drag. The strip updates after the drop.
+        guard drag == nil, newSignature != signature else { return }
         signature = newSignature
         self.pillAppearance = appearance
         self.options = options
@@ -318,6 +340,7 @@ final class StripContentView: NSView {
                 action: {}
             ))
         }
+        let draggable = actions != nil && all.filter { $0.window != nil }.count >= 2
         pills = all.map { model in
             let pill: PillView
             if model.key == "overflow" {
@@ -331,7 +354,9 @@ final class StripContentView: NSView {
                 box = pill
             } else {
                 pill = PillView(model: model, appearance: appearance)
+                pill.isDraggable = draggable && model.window != nil
             }
+            pill.onDrag = { [weak self] pill, phase, point in self?.handleDrag(pill, phase, point) }
             track.addSubview(pill)
             return pill
         }
@@ -343,6 +368,60 @@ final class StripContentView: NSView {
             track.addSubview(active, positioned: .above, relativeTo: nil)
         }
         layoutPills()
+    }
+
+    // MARK: Drag to reorder
+
+    private func handleDrag(_ pill: PillView, _ phase: PillDragPhase, _ point: NSPoint) {
+        switch phase {
+        case .began: beginDrag(pill, at: point)
+        case .changed: updateDrag(to: point)
+        case .ended: endDrag()
+        }
+    }
+
+    private func beginDrag(_ pill: PillView, at point: NSPoint) {
+        guard drag == nil, let index = pills.firstIndex(where: { $0 === pill }) else { return }
+        let pointer = track.convert(point, from: nil)
+        drag = Drag(
+            index: index,
+            grabOffset: pointer.x - pill.frame.minX,
+            startFrames: pills.map(\.frame),
+            to: index
+        )
+        // Lift the tab: on top of its neighbours and slightly see-through.
+        track.addSubview(pill, positioned: .above, relativeTo: nil)
+        pill.alphaValue = 0.85
+    }
+
+    private func updateDrag(to point: NSPoint) {
+        guard var current = drag, pills.indices.contains(current.index) else { return }
+        let pill = pills[current.index]
+        let pointer = track.convert(point, from: nil)
+        // Keep the dragged tab inside the row of tabs.
+        let lower = current.startFrames.map(\.minX).min() ?? 0
+        let upper = current.startFrames.map(\.maxX).max() ?? 0
+        let x = min(max(pointer.x - current.grabOffset, lower), max(lower, upper - pill.frame.width))
+        pill.frame.origin.x = x
+
+        // The drop slot: how many other real tabs start left of the dragged tab's center.
+        let center = x + pill.frame.width / 2
+        let others = pills.indices.filter { $0 != current.index && pills[$0].model.window != nil }
+        current.to = others.filter { current.startFrames[$0].midX < center }.count
+        drag = current
+        layoutPills()
+    }
+
+    private func endDrag() {
+        guard let finished = drag else { return }
+        drag = nil
+        if pills.indices.contains(finished.index) {
+            pills[finished.index].alphaValue = 1
+        }
+        layoutPills()
+        guard finished.to != finished.index else { return }
+        let shown = pills.compactMap { $0.model.window?.windowID }
+        actions?.moveTab(from: finished.index, to: finished.to, shown: shown)
     }
 
     /// Width the pills need, given at most `maximum`. Used by Automatic width mode to trim the panel.
@@ -421,9 +500,31 @@ final class StripContentView: NSView {
         case .center: x = max(0, (width - contentWidth) / 2)
         case .right: x = max(0, width - contentWidth)
         }
-        for (pill, pillWidth) in zip(pills, widths) {
-            pill.frame = NSRect(x: x, y: 0, width: pillWidth, height: height - options.topOverscan)
-            x += pillWidth + gap
+        // Display order. While dragging, the dragged tab is taken out and put back at its drop slot, so
+        // the others slide aside. The dragged tab keeps the frame the pointer gave it.
+        var slots = Array(pills.indices)
+        if let drag, slots.indices.contains(drag.index) {
+            slots.remove(at: drag.index)
+            slots.insert(drag.index, at: min(drag.to, slots.count))
+        }
+        for index in slots {
+            if index != drag?.index {
+                let frame = NSRect(x: x, y: 0, width: widths[index], height: height - options.topOverscan)
+                place(pills[index], frame, animated: drag != nil)
+            }
+            x += widths[index] + gap
+        }
+    }
+
+    /// Slides a tab to its slot. Animated only while a drag moves the others.
+    private func place(_ pill: PillView, _ frame: NSRect, animated: Bool) {
+        guard animated, pill.frame != frame else {
+            pill.frame = frame
+            return
+        }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.12
+            pill.animator().frame = frame
         }
     }
 }

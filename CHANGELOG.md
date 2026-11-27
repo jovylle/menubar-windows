@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Drag a tab in the strip to move it. Dragging switches the tab order to a new mode, Custom (drag tabs
+  to arrange), which keeps the order you made until the app quits. A plain click still focuses the window.
+
 ## 0.1.0 (2026-11-26)
 
 First productized build of the menu bar window switcher.

@@ -11,6 +11,9 @@
 // - Every mode breaks ties with first-seen order, then window ID, so the result is always total and
 //   stable across refreshes.
 // - Frames are in Cocoa coordinates (bottom-left origin): a larger maxY means higher on screen.
+// - `manual` is the only mode that uses a stored list (the order the user dragged tabs into). That list
+//   lives in WindowOrderTracker, in memory only: window IDs do not survive a restart. Windows not in the
+//   list (new ones) go last, in automatic order. Closed windows drop out when the tracker prunes.
 
 import CoreGraphics
 import Foundation
@@ -21,6 +24,7 @@ public enum TabOrderMode: String, CaseIterable, Identifiable, Sendable {
     case appName
     case leftToRight
     case pinnedFirst
+    case manual
 
     public var id: String { rawValue }
 
@@ -32,6 +36,7 @@ public enum TabOrderMode: String, CaseIterable, Identifiable, Sendable {
         case .appName: return "App name A to Z"
         case .leftToRight: return "Left to right on screen"
         case .pinnedFirst: return "Pinned apps first, then automatic"
+        case .manual: return "Custom (drag tabs to arrange)"
         }
     }
 
@@ -48,6 +53,8 @@ public enum TabOrderMode: String, CaseIterable, Identifiable, Sendable {
             return "Follows where windows sit on screen, by their left edge."
         case .pinnedFirst:
             return "Apps you pin (right-click a tab) come first in pin order, then the rest automatically."
+        case .manual:
+            return "Drag a tab in the strip to move it. Until then, the order is automatic. Lasts until you quit."
         }
     }
 }
@@ -89,11 +96,14 @@ public enum TabOrdering {
     ///   - firstSeen: first-seen sequence numbers from WindowOrderTracker. Windows without one sort
     ///     after those with one, by window ID.
     ///   - pinnedApps: app keys in pin order. Only used by `.pinnedFirst`.
+    ///   - manualOrder: window IDs in the order the user dragged them into. Only used by `.manual`.
+    ///     IDs missing from it go last, in automatic order.
     public static func order(
         _ windows: [WindowSnapshot],
         mode: TabOrderMode,
         firstSeen: [UInt32: Int],
-        pinnedApps: [String] = []
+        pinnedApps: [String] = [],
+        manualOrder: [UInt32] = []
     ) -> [WindowSnapshot] {
         func automaticLess(_ a: WindowSnapshot, _ b: WindowSnapshot) -> Bool {
             let sa = firstSeen[a.windowID] ?? Int.max
@@ -138,7 +148,29 @@ public enum TabOrdering {
                 let rb = rank[b.appKey] ?? Int.max
                 return ra != rb ? ra < rb : automaticLess(a, b)
             }
+
+        case .manual:
+            var rank: [UInt32: Int] = [:]
+            for (index, id) in manualOrder.enumerated() where rank[id] == nil {
+                rank[id] = index
+            }
+            return windows.sorted { a, b in
+                let ra = rank[a.windowID] ?? Int.max
+                let rb = rank[b.windowID] ?? Int.max
+                return ra != rb ? ra < rb : automaticLess(a, b)
+            }
         }
+    }
+
+    /// Moves the item at `from` to `to` (its index in the resulting list). Indices are clamped to the
+    /// list, so an out-of-range target lands at the nearest end. Returns the list unchanged when `from`
+    /// is out of range.
+    public static func move(_ ids: [UInt32], from: Int, to: Int) -> [UInt32] {
+        guard ids.indices.contains(from) else { return ids }
+        var result = ids
+        let id = result.remove(at: from)
+        result.insert(id, at: min(max(0, to), result.count))
+        return result
     }
 }
 
@@ -148,6 +180,8 @@ public enum TabOrdering {
 public final class WindowOrderTracker {
     public private(set) var firstSeen: [UInt32: Int] = [:]
     public private(set) var lastFocused: [UInt32: Date] = [:]
+    /// The order the user built by dragging tabs (`.manual`). Memory only.
+    public private(set) var manualOrder: [UInt32] = []
     private var nextSequence = 0
 
     public init() {}
@@ -175,6 +209,20 @@ public final class WindowOrderTracker {
     public func prune(keeping alive: Set<UInt32>) {
         firstSeen = firstSeen.filter { alive.contains($0.key) }
         lastFocused = lastFocused.filter { alive.contains($0.key) }
+        manualOrder = manualOrder.filter { alive.contains($0) }
+    }
+
+    /// Drops the manual order, so the next drag starts again from the order on screen.
+    public func resetManualOrder() {
+        manualOrder = []
+    }
+
+    /// Applies a drag. `visible` is the order on screen for one strip, in the order the user sees it.
+    /// The window moves from `from` to `to` within it. Windows outside `visible` (other screens, or
+    /// overflow) keep their relative order after it.
+    public func moveManual(from: Int, to: Int, visible: [UInt32]) {
+        let rest = manualOrder.filter { !visible.contains($0) }
+        manualOrder = TabOrdering.move(visible, from: from, to: to) + rest
     }
 
     /// Returns the snapshots with `lastFocusedAt` filled from this tracker.
@@ -203,7 +251,8 @@ public final class WindowOrderTracker {
             withFocusTimes(windows),
             mode: mode,
             firstSeen: firstSeen,
-            pinnedApps: pinnedApps
+            pinnedApps: pinnedApps,
+            manualOrder: manualOrder
         )
     }
 }

@@ -113,6 +113,9 @@ Finder or Spotlight (there is no Dock icon and no menu bar icon by design). Ever
 4. **Left to right on screen**: by each window's left edge, higher windows first on a tie.
 5. **Pinned apps first, then automatic**: pinned apps in pin order, then everything else.
    Pin from a tab's right-click menu. Pinning while in another mode switches to this one.
+6. **Custom (drag tabs to arrange)**: press a tab in the strip and drag it left or right to a new
+   place. Dragging in any other mode switches to this one, starting from the order you see.
+   The custom order lasts until you quit; new windows go last.
 
 Ordering is a pure function in `Sources/MenubarWindowsCore/TabOrdering.swift` with unit tests.
 

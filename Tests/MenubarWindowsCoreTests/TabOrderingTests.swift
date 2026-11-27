@@ -1,5 +1,10 @@
 // TabOrderingTests.swift
-// Swift Testing (ships with the Command Line Tools, works offline). Run with `swift test`.
+// Tests for TabOrdering and WindowOrderTracker: every order mode, the manual order (drag to reorder), and
+// pruning. Swift Testing (ships with the Command Line Tools, works offline). Run with `swift test`.
+//
+// Gotchas:
+// - Manual order is keyed by window ID only, so these tests use fixed IDs. Real IDs change on restart,
+//   which is why the manual order is memory only.
 
 import CoreGraphics
 import Foundation
@@ -158,5 +163,82 @@ struct LabelTests {
         #expect(!text.contains("\n"))
         #expect(text.count == TabLabel.maximumLength)
         #expect(text.hasSuffix("…"))
+    }
+}
+
+@Suite("Manual order")
+struct ManualOrderTests {
+    @Test func movePlacesItemAtTarget() {
+        #expect(TabOrdering.move([1, 2, 3, 4], from: 0, to: 2) == [2, 3, 1, 4])
+        #expect(TabOrdering.move([1, 2, 3, 4], from: 3, to: 0) == [4, 1, 2, 3])
+        #expect(TabOrdering.move([1, 2, 3, 4], from: 2, to: 2) == [1, 2, 3, 4])
+    }
+
+    @Test func moveClampsTargetAndIgnoresBadSource() {
+        #expect(TabOrdering.move([1, 2, 3], from: 0, to: 99) == [2, 3, 1])
+        #expect(TabOrdering.move([1, 2, 3], from: 1, to: -4) == [2, 1, 3])
+        #expect(TabOrdering.move([1, 2, 3], from: 7, to: 0) == [1, 2, 3])
+        #expect(TabOrdering.move([], from: 0, to: 0) == [])
+    }
+
+    @Test func manualOrderFollowsStoredListAndNewWindowsGoLast() {
+        let list = [window(1, "A"), window(2, "B"), window(3, "C"), window(9, "Z")]
+        let result = TabOrdering.order(list, mode: .manual, firstSeen: [:], manualOrder: [3, 1, 2])
+        #expect(ids(result) == [3, 1, 2, 9])
+    }
+
+    @Test func manualOrderIgnoresStaleIDs() {
+        let list = [window(1, "A"), window(2, "B")]
+        let result = TabOrdering.order(list, mode: .manual, firstSeen: [:], manualOrder: [7, 2, 8, 1])
+        #expect(ids(result) == [2, 1])
+    }
+
+    @Test func manualWithoutStoredOrderIsAutomatic() {
+        let tracker = WindowOrderTracker()
+        let list = [window(5, "B"), window(1, "A"), window(3, "C")]
+        let automatic = tracker.ordered(list, mode: .automatic)
+        #expect(ids(tracker.ordered(list, mode: .manual)) == ids(automatic))
+    }
+
+    @Test func moveManualSeedsFromVisibleOrderThenMoves() {
+        let tracker = WindowOrderTracker()
+        let list = [window(1, "A"), window(2, "B"), window(3, "C")]
+        let shown = ids(tracker.ordered(list, mode: .automatic))   // [1, 2, 3]
+        tracker.resetManualOrder()
+        tracker.moveManual(from: 0, to: 2, visible: shown)
+        #expect(tracker.manualOrder == [2, 3, 1])
+        #expect(ids(tracker.ordered(list, mode: .manual)) == [2, 3, 1])
+    }
+
+    @Test func moveManualKeepsOtherScreensRelativeOrder() {
+        let tracker = WindowOrderTracker()
+        tracker.moveManual(from: 0, to: 0, visible: [10, 11])   // seed: 10, 11
+        tracker.moveManual(from: 1, to: 0, visible: [20, 21])   // another strip: 21, 20
+        tracker.moveManual(from: 1, to: 0, visible: [10, 11])   // back here: 11, 10
+        #expect(tracker.manualOrder == [11, 10, 21, 20])
+    }
+
+    @Test func newWindowAfterDragGoesLast() {
+        let tracker = WindowOrderTracker()
+        let list = [window(1, "A"), window(2, "B")]
+        tracker.moveManual(from: 0, to: 1, visible: [1, 2])     // [2, 1]
+        let result = tracker.ordered(list + [window(4, "D")], mode: .manual)
+        #expect(ids(result) == [2, 1, 4])
+    }
+
+    @Test func closedWindowDropsOutOfManualOrderOnPrune() {
+        let tracker = WindowOrderTracker()
+        _ = tracker.ordered([window(1, "A"), window(2, "B"), window(3, "C")], mode: .automatic)
+        tracker.moveManual(from: 0, to: 2, visible: [1, 2, 3])  // [2, 3, 1]
+        tracker.prune(keeping: [1, 3])
+        #expect(tracker.manualOrder == [3, 1])
+        #expect(ids(tracker.ordered([window(1, "A"), window(3, "C")], mode: .manual)) == [3, 1])
+    }
+
+    @Test func resetClearsManualOrder() {
+        let tracker = WindowOrderTracker()
+        tracker.moveManual(from: 0, to: 1, visible: [1, 2])
+        tracker.resetManualOrder()
+        #expect(tracker.manualOrder.isEmpty)
     }
 }

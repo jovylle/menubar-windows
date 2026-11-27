@@ -18,6 +18,9 @@
 //   activation. It forgets a window only when CGWindowList no longer lists it at all, so a window on
 //   another Space keeps its slot.
 // - In Automatic width the panel is trimmed to the tabs, so the update must run before the frame is set.
+// - Dragging a tab (manual order) seeds the manual order from the tabs on screen when the mode is not
+//   already Custom, then applies the move and switches the mode to Custom. The manual order is memory
+//   only, so it resets on restart. Other screens keep their relative manual order.
 // - Demo mode (DemoMode.swift) swaps the window source for invented windows and turns close, minimize
 //   and raise into no-ops. Every demo branch checks DemoMode.isOn, so the normal path is unchanged.
 
@@ -233,7 +236,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
             tracker.withFocusTimes(windows.map(\.snapshot)),
             mode: settings.order,
             firstSeen: tracker.firstSeen,
-            pinnedApps: settings.pinnedApps
+            pinnedApps: settings.pinnedApps,
+            manualOrder: tracker.manualOrder
         )
         return ordered.compactMap { byID[$0.windowID] }
     }
@@ -330,6 +334,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
 
     func openSettings() {
         SettingsWindowController.shared.show()
+    }
+
+    func moveTab(from: Int, to: Int, shown: [UInt32]) {
+        if settings.order != .manual {
+            // Seed from the order on screen: forget any stale manual order from an earlier session.
+            tracker.resetManualOrder()
+            settings.order = .manual
+        }
+        tracker.moveManual(from: from, to: to, visible: shown)
+        refresh()
     }
 }
 
