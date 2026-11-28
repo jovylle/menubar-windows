@@ -23,6 +23,10 @@
 //   only, so it resets on restart. Other screens keep their relative manual order.
 // - Demo mode (DemoMode.swift) swaps the window source for invented windows and turns close, minimize
 //   and raise into no-ops. Every demo branch checks DemoMode.isOn, so the normal path is unchanged.
+// - Full screen is per display. Each refresh reads the frontmost app's full-screen windows once, and each
+//   screen hides its strip only when one of them sits on that screen. The other displays keep their tabs.
+// - Custom tab names (Rename Tab…) live in tabNames, in memory only, keyed by window ID. They are pruned with
+//   the order tracker and reset on restart. A name replaces the label only; the window title is unchanged.
 
 import AppKit
 import Combine
@@ -37,6 +41,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
 
     private let settings = Settings.shared
     private let tracker = WindowOrderTracker()
+    /// Custom tab names from "Rename Tab…". Memory only, like the tracker's manual order.
+    private var tabNames = TabNameOverrides()
     private var strips: [ScreenStrip] = []
     private var trusted = false
     private var timers: [Timer] = []
@@ -176,11 +182,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
         tracker.observe(windows.map(\.snapshot))
         refreshCount += 1
         if refreshCount % 20 == 0, !DemoMode.isOn {
-            tracker.prune(keeping: WindowProvider.aliveWindowIDs())
+            let alive = WindowProvider.aliveWindowIDs()
+            tracker.prune(keeping: alive)
+            tabNames.prune(keeping: alive)
             if iconCache.count > 200 { iconCache.removeAll() }
         }
 
         let pickerShowsNotchLabels = MenuBarGeometry.anyScreenHasNotch
+        // Read once per pass, shared by every screen: each screen decides for itself (see FullScreenRule).
+        let fullScreenFrames = settings.hideInFullScreen ? MenuBarGeometry.frontmostFullScreenFrames() : []
         for (index, strip) in strips.enumerated() {
             guard settings.isDisplayEnabled(strip.displayID),
                   let region = MenuBarGeometry.freeStrip(
@@ -189,7 +199,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
                       alignment: settings.alignment,
                       pickerShowsNotchLabels: pickerShowsNotchLabels,
                       coverAppleMenu: settings.coverAppleMenu,
-                      hideInFullScreen: settings.hideInFullScreen
+                      fullScreenFrames: fullScreenFrames
                   ) else {
                 strip.panel.orderOut(nil)
                 continue
@@ -248,7 +258,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
         if DemoMode.isOn { return demoPillModel(for: window) }
         return PillModel(
             key: String(window.windowID),
-            text: window.label(settings.label),
+            text: window.label(settings.label, customName: tabNames.name(for: window.windowID)),
             accessibilityText: TabLabel.accessibilityText(appName: window.appName, title: window.title),
             icon: appIcon(pid: window.pid),
             isActive: window.isFocused,
@@ -266,7 +276,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
     private func demoPillModel(for window: WindowInfo) -> PillModel {
         PillModel(
             key: String(window.windowID),
-            text: window.label(settings.label),
+            text: window.label(settings.label, customName: tabNames.name(for: window.windowID)),
             accessibilityText: TabLabel.accessibilityText(appName: window.appName, title: window.title),
             icon: DemoMode.icon(appKey: window.appKey),
             isActive: window.isFocused,
@@ -321,6 +331,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, StripActions {
     func isPinned(_ window: WindowInfo) -> Bool { settings.isPinned(window.appKey) }
 
     func togglePin(_ window: WindowInfo) { settings.togglePin(window.appKey) }
+
+    func isRenamed(_ window: WindowInfo) -> Bool { tabNames.name(for: window.windowID) != nil }
+
+    func renameTab(_ window: WindowInfo) {
+        let prefill = TabLabel.renamePrefill(
+            appName: window.appName, title: window.title, mode: settings.label,
+            customName: tabNames.name(for: window.windowID)
+        )
+        guard let typed = TabRenamePrompt.ask(prefill: prefill) else { return }
+        // Accepting the text the prompt started with changes nothing. Otherwise an untouched prompt would
+        // freeze a label that should keep following the window title.
+        guard TabNameOverrides.clean(typed) != TabNameOverrides.clean(prefill) else { return }
+        tabNames.rename(window.windowID, to: typed)
+        refresh()
+    }
+
+    func resetTabName(_ window: WindowInfo) {
+        tabNames.reset(window.windowID)
+        refresh()
+    }
 
     func close(_ window: WindowInfo) {
         guard !DemoMode.isOn else { return }

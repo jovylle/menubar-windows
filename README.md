@@ -88,6 +88,8 @@ More in [`assets/screenshots/`](assets/screenshots/): `strip-three.png`, `strip-
 - Per-display on/off, hide on demand, hide in full screen, hide when only one window is open.
 - Right-click a tab: hide for a few seconds, pin or unpin its app, close or minimize the window,
   Settings, Quit. Middle-click a tab to close its window.
+- Rename a tab: right-click it and choose **Rename Tab…**. The name replaces that tab's label only, not the
+  window title. Empty input or **Reset Name** shows the label again. Names last until the app quits.
 - Light on resources: one 0.5s refresh timer and a 2s permission check, no background services. Measured
   on the development Mac with four windows: 0.7% CPU on average while idle (20-second `top` sample).
 - No network access, no analytics. Nothing leaves your Mac.
@@ -262,7 +264,9 @@ in the app's own `UserDefaults`.
   stops working, matching falls back to window bounds within 2pt.
 - **Menu bar auto-hide:** when the system reserves no menu bar and no app menu titles are seen on a
   display, that display gets no strip.
-- **Full screen:** detection is a best-effort check of `AXFullScreen` on the frontmost window.
+- **Full screen:** detection is a best-effort check of `AXFullScreen` on the windows of the frontmost app.
+  Only the display that holds a full-screen window loses its strip; other displays keep theirs. A
+  full-screen app that is not frontmost is not detected, so its display keeps the strip.
 - **Notch:** the strip is limited to the area left of the notch. If too little room is left, it hides.
 - **The strip may cover the frontmost app's menu titles** in the middle of the bar. Right-click a tab and
   use **Hide for …** to reach them.
@@ -309,9 +313,11 @@ Resources/                       AppIcon.icns, AppIcon-1024.png (generated, comm
 Sources/MenubarWindowsCore/
   TabOrdering.swift              order modes, ordering function, first-seen and MRU tracker
   TabLabel.swift                 label modes and label text
+  TabNameOverrides.swift         custom tab names from Rename Tab…, in memory per window ID
   FocusMatch.swift               which tab is active (focused, else main window, timeout rule)
   TabPalette.swift               tab colors per theme and state, WCAG contrast
   WindowFilterRule.swift         helper-window filter by size and AX subrole
+  FullScreenRule.swift           which display a full-screen window takes over (strip hidden there only)
   DemoData.swift                 invented windows, apps and displays for demo mode
 Sources/MenubarWindows/
   AppInfo.swift                  display name, bundle id, tagline (single source)
