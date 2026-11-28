@@ -20,7 +20,12 @@ enum ListCommand {
         print("Filters: minimized \(settings.includeMinimized ? "included" : "excluded"), "
             + "small helper windows \(settings.ignoreSmallWindows ? "ignored below \(Int(settings.smallWindowSize))pt" : "kept")")
         print("Frontmost app: \(NSWorkspace.shared.frontmostApplication?.localizedName ?? "none")")
-        print("Frontmost window full screen: \(MenuBarGeometry.frontmostIsFullScreen())")
+        let fullScreenFrames = MenuBarGeometry.frontmostFullScreenFrames()
+        let fullScreenText = fullScreenFrames.isEmpty
+            ? "none"
+            : fullScreenFrames.map { $0.map(describe) ?? "unknown frame" }.joined(separator: ", ")
+        print("Frontmost app full-screen windows: \(fullScreenText)"
+            + (settings.hideInFullScreen ? "" : " (hide in full screen is off)"))
 
         let windows = trusted ? WindowProvider.allWindows() : []
         if !trusted {
@@ -46,11 +51,11 @@ enum ListCommand {
                 alignment: settings.alignment,
                 pickerShowsNotchLabels: pickerShowsNotchLabels,
                 coverAppleMenu: settings.coverAppleMenu,
-                hideInFullScreen: settings.hideInFullScreen
+                fullScreenFrames: settings.hideInFullScreen ? fullScreenFrames : []
             ) {
                 print("  strip region: \(describe(strip.frame)), \(strip.leftSource)")
             } else {
-                print("  strip region: hidden (menu bar not reserved, full screen, or no room)")
+                print("  strip region: hidden (menu bar not reserved, full screen on this display, or no room)")
             }
 
             let onScreen = WindowProvider.windows(on: screen, in: windows)

@@ -28,6 +28,9 @@
 //   pulled back to stay clear of them, sliding left to keep the width.
 // - The panel extends topOverscan points ABOVE the screen's top edge, so a click with the pointer
 //   pushed against the very top still lands on a tab.
+// - Full screen is per display. A full-screen window hides the menu bar only on the display that holds
+//   it, so the strip steps aside only there (FullScreenRule in Core decides by the window's center). The
+//   frames come from the frontmost app's AX windows and are read once per refresh, not once per screen.
 
 import AppKit
 import ApplicationServices
@@ -114,19 +117,28 @@ enum MenuBarGeometry {
         CGRect(x: rect.minX, y: primaryMaxY() - rect.maxY, width: rect.width, height: rect.height)
     }
 
-    /// True when the frontmost app's focused window is full screen. Its menu bar is hidden then.
-    static func frontmostIsFullScreen() -> Bool {
+    /// One entry per full-screen window of the frontmost app, in Cocoa coordinates. A nil entry is a
+    /// full-screen window whose frame AX would not give. Empty when no window of that app is full screen.
+    /// Every window is checked, not only the focused one: a helper window (a Find bar, a popover) can hold
+    /// focus over a full-screen window, and a second full-screen window can sit on another display.
+    static func frontmostFullScreenFrames() -> [CGRect?] {
         guard AXIsProcessTrusted(),
               let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier else {
-            return false
+            return []
         }
         let app = AXUIElementCreateApplication(pid)
         AX.setTimeout(app)
-        // A helper window (a Find bar, a popover) can hold focus over a full-screen window, so the
-        // app's main window counts too.
-        return ["AXFocusedWindow", "AXMainWindow"].contains { attribute in
-            AX.element(app, attribute).flatMap { AX.copy($0, "AXFullScreen") as? Bool } ?? false
+        var frames: [CGRect?] = []
+        for window in AX.elements(app, "AXWindows") {
+            guard (AX.copy(window, "AXFullScreen") as? Bool) == true else { continue }
+            guard let position = AX.point(window, "AXPosition"),
+                  let size = AX.size(window, "AXSize") else {
+                frames.append(nil)
+                continue
+            }
+            frames.append(cocoaRect(fromTopLeft: CGRect(origin: position, size: size)))
         }
+        return frames
     }
 
     /// Largest right edge (Cocoa x) of the frontmost app's menu titles that sit on this screen's menu bar.
@@ -207,16 +219,17 @@ enum MenuBarGeometry {
     ///   - pickerShowsNotchLabels: `anyScreenHasNotch`, computed once by the caller.
     ///   - coverAppleMenu: start at the very left edge, over the Apple menu, so the pointer thrown into the
     ///     top left corner lands on the first tab. Applies to every screen where the placement is Left.
-    ///   - hideInFullScreen: hide while the frontmost window is full screen.
+    ///   - fullScreenFrames: from frontmostFullScreenFrames(), or empty when "Hide in full-screen apps" is
+    ///     off. The strip steps aside only on the screen that holds one of these windows.
     static func freeStrip(
         on screen: NSScreen,
         width: CGFloat = StripLayout.stripWidth,
         alignment: StripAlignment = .center,
         pickerShowsNotchLabels: Bool,
         coverAppleMenu: Bool = false,
-        hideInFullScreen: Bool = true
+        fullScreenFrames: [CGRect?] = []
     ) -> FreeStrip? {
-        if hideInFullScreen, frontmostIsFullScreen() { return nil }
+        if FullScreenRule.hidesStrip(screenFrame: screen.frame, fullScreenFrames: fullScreenFrames) { return nil }
 
         // NSScreen.visibleFrame can report no reserved menu bar on an external display that does
         // have one, so reserved height alone is not enough. A screen counts as having a menu bar when

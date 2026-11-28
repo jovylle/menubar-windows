@@ -50,8 +50,9 @@ struct WindowInfo {
         )
     }
 
-    func label(_ mode: TabLabelMode) -> String {
-        TabLabel.text(appName: appName, title: title, mode: mode)
+    /// The tab label. `customName` comes from the user's rename (TabNameOverrides), not from the window.
+    func label(_ mode: TabLabelMode, customName: String? = nil) -> String {
+        TabLabel.text(appName: appName, title: title, mode: mode, customName: customName)
     }
 }
 

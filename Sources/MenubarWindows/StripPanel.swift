@@ -18,6 +18,9 @@
 //   sliding frames, so the slot does not flicker at a boundary. The drop calls StripActions.moveTab.
 //   Overflow ("+N") and the permission pill are never dragged or drop targets.
 // - update() does not rebuild pills while a drag is running; the pill being dragged must stay in place.
+// - Rename Tab… and Reset Name are plain menu items. Neither touches hitTest, the layer fill or the mouse
+//   handlers, so left-click raise and drag are unchanged. Rename runs its prompt after the menu closes.
+//   The strip shows the new name on the next refresh (AppDelegate.renameTab).
 
 import AppKit
 import MenubarWindowsCore
@@ -28,6 +31,10 @@ protocol StripActions: AnyObject {
     func hideStrips(for seconds: TimeInterval)
     func isPinned(_ window: WindowInfo) -> Bool
     func togglePin(_ window: WindowInfo)
+    /// Whether the tab has a custom name from "Rename Tab…", so "Reset Name" is offered.
+    func isRenamed(_ window: WindowInfo) -> Bool
+    func renameTab(_ window: WindowInfo)
+    func resetTabName(_ window: WindowInfo)
     func close(_ window: WindowInfo)
     func minimize(_ window: WindowInfo)
     func openSettings()
@@ -209,6 +216,14 @@ final class StripContentView: NSView {
             let pin = item(pinned ? "Unpin \(window.appName)" : "Pin \(window.appName) to the front", #selector(pinRequested(_:)))
             pin.representedObject = WindowBox(window)
             menu.addItem(pin)
+            let rename = item("Rename Tab…", #selector(renameRequested(_:)))
+            rename.representedObject = WindowBox(window)
+            menu.addItem(rename)
+            if actions?.isRenamed(window) ?? false {
+                let reset = item("Reset Name", #selector(resetNameRequested(_:)))
+                reset.representedObject = WindowBox(window)
+                menu.addItem(reset)
+            }
             let close = item("Close window", #selector(closeRequested(_:)))
             close.representedObject = WindowBox(window)
             menu.addItem(close)
@@ -257,6 +272,17 @@ final class StripContentView: NSView {
     @objc private func pinRequested(_ sender: NSMenuItem) {
         guard let box = sender.representedObject as? WindowBox else { return }
         actions?.togglePin(box.window)
+    }
+
+    @objc private func renameRequested(_ sender: NSMenuItem) {
+        guard let box = sender.representedObject as? WindowBox else { return }
+        // The prompt is modal. Show it once the menu has closed, not inside the menu's tracking loop.
+        DispatchQueue.main.async { [weak self] in self?.actions?.renameTab(box.window) }
+    }
+
+    @objc private func resetNameRequested(_ sender: NSMenuItem) {
+        guard let box = sender.representedObject as? WindowBox else { return }
+        actions?.resetTabName(box.window)
     }
 
     @objc private func closeRequested(_ sender: NSMenuItem) {
