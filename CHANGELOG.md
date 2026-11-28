@@ -2,11 +2,19 @@
 
 ## Unreleased
 
+## 0.1.3 (2026-11-28)
+
 ### Added
 - Reset arrow after each setting: restores that one setting to its default, and is disabled while the
   setting is already at its default. "Reset all to defaults" (About) asks first and keeps pinned apps.
 - Drag a tab in the strip to move it. Dragging switches the tab order to a new mode, Custom (drag tabs
   to arrange), which keeps the order you made until the app quits. A plain click still focuses the window.
+- Rename a tab from its right-click menu (Rename Tab…). The name replaces the tab's label only, not the
+  window title. Empty input or Reset Name shows the label again. Names last until the app quits.
+
+### Fixed
+- With two displays, a full-screen app on one display hid the tab strip on the other display too. The
+  strip now steps aside only on the display that holds the full-screen window.
 
 ## 0.1.0 (2026-11-26)
 
